@@ -85,11 +85,13 @@ class Sprite:
         for i in range(16):
             self.data.append(dict())
 
-    def add_line(self, line_num, color, cell, pattern):
+    def add_line(self, line_num, color, cell, pattern, combine=False):
         self.colors.add(color)
         if color not in self.data[line_num]:
             self.data[line_num][color] = [0, 0]
         self.data[line_num][color][cell] = pattern
+        if combine:
+            self.data[line_num][color][0] = -abs(self.data[line_num][color][0])
         self.components = max(self.components, len(self.data[line_num]))
 
     def get_component(self, idx):
@@ -100,11 +102,11 @@ class Sprite:
                 color = 0
                 try:
                     color = sorted(self.data[line_num].keys())[idx]
-                    tmp = 0
+                    byte = 0
                     with contextlib.suppress(KeyError):
-                        tmp = self.data[line_num][color][cell]
-                    if not cell: data['colors'].append(color)
-                    data['patterns'].append(tmp)
+                        byte = self.data[line_num][color][cell]
+                    if not cell: data['colors'].append(color + (64 if byte < 0 else 0))
+                    data['patterns'].append(abs(byte))
                 except IndexError:
                     if not cell: data['colors'].append(0)
                     data['patterns'].append(0)
@@ -192,19 +194,21 @@ def main():
                     sprite = sprites[(x // DEF_W) + (y // DEF_H) * (w // DEF_W)]
                     byte = [0] * 16
                     p = 7
+                    comb = {}
                     for k in range(8):
                         idx = lookup[tile[i + j * 16 + k]]
                         if idx in removed:
                             c1, c2 = removed[idx]
                             byte[c1] |= 1 << p
                             byte[c2] |= 1 << p
+                            comb[max(c1, c2)] = True
                         elif idx > 0:
                             byte[idx] |= 1 << p
                         p -= 1
 
                     for color in line:
-                        if byte[color] > 0:
-                            sprite.add_line(j, color, cell, byte[color])
+                        if byte[color] != 0:
+                            sprite.add_line(j, color, cell, byte[color], comb.get(color, False))
 
             total_bytes += sprite.components * 32 
             total_bytes += sprite.components * 16
