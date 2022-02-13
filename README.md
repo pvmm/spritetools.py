@@ -3,7 +3,7 @@
 png2sprites.py
 ==============
 
-Converts png image into MSX2 sprites. Resulting sprites will always align perfectly over previous layer. Sample images are from the wiki https://www.msx.org/wiki/The_OR_Color. **png2sprites.py** is based on `png2sprites.py` script tool from reidrac's https://gitlab.com/reidrac/ubox-msx-lib set of tools and libraries.
+Converts png image into MSX2 sprites. Resulting sprites will always align perfectly over previous layer. Sample images are from the wiki https://www.msx.org/wiki/The_OR_Color. **png2sprites.py** is a heavily modified version of `png2sprites.py` script tool from reidrac's https://gitlab.com/reidrac/ubox-msx-lib set of tools and libraries.
 
 
 Files
@@ -63,4 +63,5 @@ You can refresh sample results with:
 TODO
 ----
 
-* palette export feature
+* palette export feature;
+* palette optimizations to reduce sprite count;
