@@ -64,4 +64,4 @@ TODO
 ----
 
 * palette export feature;
-* palette optimizations to reduce sprite count;
+* ~~palette optimizations to reduce sprite count;~~

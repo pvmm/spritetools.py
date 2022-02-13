@@ -243,7 +243,7 @@ def main():
         palette = list(eval(pal_file.read()))
         lookup = {y:x for x, y in enumerate(palette)} # palette lookup
         if len(palette) != 16:
-            parser.error("wrong palette size (16 colors expected, got %i)" % len(pal))
+            parser.error("wrong palette size (16 colors expected, got %i)" % len(palette))
         for (r, g, b) in palette:
             if not(int == type(r) == type(g) == type(b)):
                 parser.error("wrong palette type")
