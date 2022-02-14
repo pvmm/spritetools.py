@@ -17,6 +17,9 @@ Files
 * `samples/snake.pal`: 15 color triples (RGB) that specifies a MSX2 palette.
 * `samples/snake.png`: sample image of Snake from Metal Gear 1.
 * `samples/SNAKE.BAS`: simple BASIC code that displays Snake sprite in SCREEN 5.
+* `samples/palette.pal`: 16-colour palette triples (8-bit RGB values) used in palette.png.
+* `samples/palette.png`: sample image using all colours.
+* `samples/PALETTE.BAS`: simple BASIC code the displays the sprite generated from palette.png.
 
 
 How to use it
