@@ -138,8 +138,8 @@ def get_component_size(image, palette):
             tile = [data[x + i + ((y + j) * w)]
                     for j in range(DEF_H) for i in range(DEF_W)]
             cols = set([c for c in tile if c is not TRANS])
-            if len([c for c in cols if not c in palette]) > 0:
-                raise LookupError
+            if len(cols := [c for c in cols if not c in palette]) > 0:
+                raise LookupError(cols)
 
             if not cols: continue
 
@@ -257,8 +257,8 @@ def main():
     try:
         min_size = get_component_size(image, palette)
         debug(f'min_size = {min_size}')
-    except LookupError:
-        parser.error("Colors used in the image must be present in the palette")
+    except LookupError as e:
+        parser.error("Colors used in the image must be present in the palette: %s" % e)
 
     min_components = 15
     best_sprites = None
@@ -293,8 +293,8 @@ def main():
         line_num = 100; print('%d SCREEN 5,2' % line_num)
         line_num += 10; print('%d REM PALETTE' % line_num)
         for index, color in enumerate(best_pal[1:]):
-            color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
-            line_num += 10; print('%d COLOR=%s' % (line_num, (index + 1,) + color))
+            msx_color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
+            line_num += 10; print('%d COLOR=%s: REM RGB=%s' % (line_num, (index + 1,) + msx_color, color))
         for i in range(len(out)):
             line_num += 10; print('%d REM READ %s_COLORS(%d)' % (line_num, args.id.upper(), i))
             line_num += 10; print('%d A$="":FOR I = 1 TO 16:READ A%%:A$=A$+CHR$(A%%):NEXT:COLOR SPRITE$(%d)=A$' % (line_num, i))
