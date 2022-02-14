@@ -59,19 +59,72 @@ def to_hex_list_str_basic(src):
 
 
 def decombine_colors(indexes):
-    tmp = list(indexes)
-    curr = tmp.pop()
+    debug(f'decombine_colors({indexes})')
+    rest = list(indexes) # 1,4,5
+    curr = rest.pop()
     removed = {}
+    factors = []
+    factor = True
 
-    while curr > 1 and len(tmp) > 1:
-        for c1, c2 in permutations(tmp, 2):
-           if c1 | c2 == curr:
-               indexes.pop(indexes.index(curr))
-               removed[curr] = (c1, c2)
-               break
-        curr = tmp.pop()
+    if curr > 1 and len(rest) > 1:
+        for c1, c2 in permutations(rest, 2):
+            if c1 | c2 == curr: # 1,4,5
+                factor = False
+                debug(f'[1] decombine_colors({rest})')
+                nremoved, rest, nfactors = decombine_colors(rest)
+                if c2 in nfactors:
+                    if removed.get(curr, False):
+                        debug(f'(0) removed[{curr}].append({c2})')
+                        removed[curr].append(c2)
+                    else:
+                        debug(f'(1) removed[{curr}] = [{c2}]')
+                        removed[curr] = [c2]
+                elif nremoved.get(c2, False):
+                    if removed.get(curr, False):
+                        debug(f'(2) removed[{curr}].append({nremoved[c2]})')
+                        removed[curr].append(nremoved[c2])
+                    else:
+                        debug(f'(3) removed[{curr}] = {nremoved[c2]}')
+                        removed[curr] = list(nremoved[c2])
+                removed.update(nremoved)
+                factors.extend(nfactors)
 
-    return removed, indexes
+                if len(rest):
+                    debug(f'[2] decombine_colors({rest})')
+                    nremoved, rest, nfactors = decombine_colors(rest)
+                    if c1 in nfactors:
+                        if removed.get(curr, False):
+                            debug(f'(4) removed[{curr}].append({c1})')
+                            removed[curr].append(c1)
+                        else:
+                            debug(f'(5) removed[{curr}] = [{c1}]')
+                            removed[curr] = [c1]
+                else:
+                    if removed.get(curr, False):
+                        debug(f'(6) removed[{curr}].append({c1})')
+                        removed[curr].append(c1)
+                    else:
+                        debug(f'(7) removed[{curr}] = [{c1}]')
+                        removed[curr] = [c1]
+
+                debug(f'non-factor: returning removed={removed}, rest={rest}, factors={factors}, curr={curr}')
+                return removed, rest, factors
+
+    if factor:
+        if len(rest) > 2:
+            debug(f'[3] decombine_colors({rest})')
+            nremoved, rest, nfactors = decombine_colors(rest)
+            removed.update(nremoved)
+            factors.append(curr)
+            factors.extend(nfactors)
+            debug(f'(1) factor: returning removed={removed}, rest={rest}, factors={factors}, curr={curr}')
+            return removed, rest, factors
+        factors.extend(indexes)
+        debug(f'(2) factor: returning removed={removed}, rest={[]}, factors={factors}, curr={curr}')
+        return removed, [], factors
+
+    debug(f'finished: returning removed={removed}, rest={rest}, factors={factors}')
+    return removed, rest, factors
 
 
 class Sprite:
@@ -119,7 +172,6 @@ def build_lookup_table(palette):
     lookup = {y: x for x, y in enumerate(palette)} # palette lookup
 
     if len(palette) != 16:
-        print(len(palette))
         raise OverflowError 
     for (r, g, b) in palette:
         if not(int == type(r) == type(g) == type(b)):
@@ -177,7 +229,7 @@ def build_sprites(image, palette):
                     if idx: line.add(idx)
 
                 if not line: continue
-                removed, line = decombine_colors(list(line))
+                removed, _, line = decombine_colors(list(line))
 
                 for cell, i in ((0, 0), (1, 8)):
                     sprite = sprites[(x // DEF_W) + (y // DEF_H) * (w // DEF_W)]
@@ -188,10 +240,12 @@ def build_sprites(image, palette):
                     for k in range(8):
                         idx = lookup[tile[i + j * 16 + k]]
                         if idx in removed:
-                            c1, c2 = removed[idx]
-                            byte[c1] |= 1 << p
-                            byte[c2] |= 1 << p
-                            comb[max(c1, c2)] = True
+                            colors = removed[idx]
+                            debug(f'colors={colors}')
+                            for c in colors:
+                                byte[c] |= 1 << p
+                            for c1, c2 in permutations(colors, 2):
+                                comb[max(c1, c2)] = True
                         elif idx > 0:
                             byte[idx] |= 1 << p
                         p -= 1
