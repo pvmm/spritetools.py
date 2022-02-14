@@ -224,7 +224,7 @@ def main():
                         help="include palette colors in C or ASM output") # TODO
     parser.add_argument("-p", "--palette", dest="pal_file", type=str,
                         help="set of colors to use from file")
-    parser.add_argument("-m", "--minimise", dest="min", type=bool,
+    parser.add_argument("-m", "--minimise", dest="min", action="store_true",
                         help="try to minimise palette by brute force")
 
     parser.add_argument("image", help="image to convert")
@@ -265,10 +265,13 @@ def main():
     best_pal = None
     num = 0
 
-    for tmp in permutations(palette[1:]):
+    if args.min:
+        scope = permutations(palette[1:])
+    else:
+        scope = (tuple(palette[1:]),)
+
+    for tmp in scope:
         pal = (palette[0],) + tmp
-        num += 1
-        debug(f"\r{num} pass...", end='')
         sprites, components, total_bytes = build_sprites(image, pal)
         if components < min_components:
             min_components = components
