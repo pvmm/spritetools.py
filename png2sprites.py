@@ -348,10 +348,11 @@ def main():
 
     if args.basic:
         line_num = 100; print('%d SCREEN 5,2' % line_num)
+        line_num += 10; print('%d VDP(9)=VDP(9) OR &H20: COLOR 15,0,0' % line_num) # set same background color of the original image
         line_num += 10; print('%d REM PALETTE' % line_num)
-        for index, color in enumerate(best_pal[1:]):
+        for index, color in enumerate(best_pal):
             msx_color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
-            line_num += 10; print('%d COLOR=%s: REM RGB=%s' % (line_num, (index + 1,) + msx_color, color))
+            line_num += 10; print('%d COLOR=%s: REM RGB=%s' % (line_num, (index,) + msx_color, color))
         for i in range(len(out)):
             line_num += 10; print('%d REM READ %s_COLORS(%d)' % (line_num, args.id.upper(), i))
             line_num += 10; print('%d A$="":FOR I = 1 TO 16:READ A%%:A$=A$+CHR$(A%%):NEXT:COLOR SPRITE$(%d)=A$' % (line_num, i))
