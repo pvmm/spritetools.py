@@ -169,12 +169,13 @@ class Sprite:
 
 
 def build_lookup_table(palette):
-    lookup = {y: x for x, y in enumerate(palette)} # palette lookup
+    # input: rgb tuple, output: colour index
+    lookup = {c: i for i, c in enumerate(palette)} # palette lookup
 
     if len(palette) != 16:
-        raise OverflowError 
-    for (r, g, b) in palette:
-        if not(int == type(r) == type(g) == type(b)):
+        raise IndexError
+    for color in palette:
+        if not all([type(c) == int for c in color]):
             raise TypeError
 
     return lookup
