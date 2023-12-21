@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 #
 
+import os
 import sys
 import contextlib
 import math
@@ -36,7 +37,11 @@ DEF_W = 16
 DEF_H = 16
 
 TRANS = (255, 0, 255)
-debug = lambda *x, **y: None
+
+if os.environ.get('DEBUG', False):
+    debug = lambda *x, **y: print(*x, **y, file=sys.stderr)
+else:
+    debug = lambda *x, **y: None
 
 
 def to_hex_list_str(src):
@@ -309,6 +314,7 @@ def main():
         parser.error("%s size is not multiple of sprite size (%s, %s)" %
                      (args.image, DEF_W, DEF_H))
 
+    # Get mininum possible size and try to match
     try:
         min_size = get_component_size(image, palette)
         debug(f'min_size = {min_size}')
