@@ -33,6 +33,7 @@ from PIL import Image
 
 __version__ = "1.0"
 
+MAX_COLORS = 16
 DEF_W = 16
 DEF_H = 16
 
@@ -182,7 +183,7 @@ def build_lookup_table(palette):
     """Return map where key is (r, g, b) and value is the palette index."""
     lookup = {c: i for i, c in enumerate(palette)} # palette lookup
 
-    if len(palette) != 16:
+    if len(palette) != MAX_COLORS:
         raise IndexError
     for color in palette:
         if not all([type(c) == int for c in color]):
@@ -192,7 +193,7 @@ def build_lookup_table(palette):
 
 
 def get_combination_size(image, palette):
-    """Get size of the OR-colour combinations for the whole image."""
+    """Get number of colours used in OR-colour combinations for the whole image."""
     data = image.getdata()
     colors = {}
     w, h = image.size
@@ -202,10 +203,10 @@ def get_combination_size(image, palette):
             # separate current sprite data
             pattern = [data[x + i + ((y + j) * w)]
                        for j in range(DEF_H) for i in range(DEF_W)]
-            cols = set([c for c in pattern if c is not IMG_TRANS])
+            cols = set([c for c in pattern if c != IMG_TRANS])
             # detect colour not found in palette
-            if len(cols := [c for c in cols if not c in palette]) > 0:
-                raise LookupError(cols)
+            if len(xcols := [c for c in cols if not c in palette]) > 0:
+                raise LookupError(xcols)
 
             if not cols: continue
 
@@ -213,7 +214,7 @@ def get_combination_size(image, palette):
             for j in range(DEF_H):
                 for i in range(DEF_W):
                     color = pattern[i + j * DEF_W]
-                    if color != MSX_TRANS: colors[color] = True
+                    if color != IMG_TRANS: colors[color] = True
 
     return max(0, math.ceil(math.log2(len(colors)+0.00001)))
 
@@ -345,7 +346,7 @@ def main():
         sprites, components, total_bytes = build_sprites(image, pal)
         if components < min_components:
             min_components = components
-            debug(f'\nmin_components is now {min_components}')
+            debug('\nmin_components is now', min_components)
             best_sprites, best_pal = sprites, pal
         if components == min_size:
             break
