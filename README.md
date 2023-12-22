@@ -68,6 +68,6 @@ TODO
 
 * palette export feature;
 * ~~palette optimizations to reduce sprite count;~~
-* make palette file optional;
+* ~~make palette file optional;~~
 * add an option to optimise away palette file;
 * make palette minimisation faster;

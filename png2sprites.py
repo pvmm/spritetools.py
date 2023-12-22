@@ -39,6 +39,7 @@ DEF_H = 16
 
 IMG_TRANS = (255, 0, 255)
 MSX_TRANS = (0, 0, 0)
+FAKE_PAL = [(-1, -1, -1)] * MAX_COLORS
 
 # Enable/disable DEBUG mode
 if os.environ.get('DEBUG', False):
@@ -192,6 +193,20 @@ def build_lookup_table(palette):
     return lookup
 
 
+def get_palette_from_image(image):
+    data = image.getdata()
+    w, h = image.size
+    palette = {}
+
+    for y in range(h):
+        for x in range(w):
+            pixel = data[x + y * DEF_W]
+            if pixel == IMG_TRANS: continue
+            palette[pixel] = True
+
+    return ([IMG_TRANS] + list(sorted(palette.keys())) + FAKE_PAL)[0:MAX_COLORS]
+
+
 def get_combination_size(image, palette):
     """Get number of colours used in OR-colour combinations for the whole image."""
     data = image.getdata()
@@ -309,14 +324,21 @@ def main():
     if image.mode != "RGB":
         parser.error("not a RGB image (%s detected)" % image.mode)
 
-    with open(args.pal_file, 'r') as pal_file:
-        palette = list(eval(pal_file.read()))
+    if args.pal_file:
+        with open(args.pal_file, 'r') as pal_file:
+            palette = list(eval(pal_file.read()))
+            lookup = {y:x for x, y in enumerate(palette)} # palette lookup
+            if len(palette) > MAX_COLORS:
+                parser.error("palette too big (maximum of 16 colors expected, got %i)" % len(palette))
+            for (r, g, b) in palette:
+                if not(int == type(r) == type(g) == type(b)):
+                    parser.error("wrong palette type")
+    else:
+        palette = get_palette_from_image(image)
+        if len(palette) > MAX_COLORS:
+            parser.error("palette too big (maximum of 16 colors expected, got %i)" % len(palette))
+        debug('using embedded palette: ', palette)
         lookup = {y:x for x, y in enumerate(palette)} # palette lookup
-        if len(palette) != 16:
-            parser.error("wrong palette size (16 colors expected, got %i)" % len(palette))
-        for (r, g, b) in palette:
-            if not(int == type(r) == type(g) == type(b)):
-                parser.error("wrong palette type")
 
     w, h = image.size
 
