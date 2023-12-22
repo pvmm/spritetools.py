@@ -36,8 +36,10 @@ __version__ = "1.0"
 DEF_W = 16
 DEF_H = 16
 
-TRANS = (255, 0, 255)
+IMG_TRANS = (255, 0, 255)
+MSX_TRANS = (0, 0, 0)
 
+# Enable/disable DEBUG mode
 if os.environ.get('DEBUG', False):
     debug = lambda *x, **y: print(*x, **y, file=sys.stderr)
 else:
@@ -45,6 +47,7 @@ else:
 
 
 def to_hex_list_str(src):
+    """Writes sprites as C-style hexadecimal data."""
     out = ""
     for i in range(0, len(src), 8):
         out += ', '.join(["0x%02x" % b for b in src[i:i + 8]]) + ',\n'
@@ -52,6 +55,7 @@ def to_hex_list_str(src):
 
 
 def to_hex_list_str_asm(src):
+    """Writes sprites as assembly-style hexadecimal data."""
     out = ""
     for i in range(0, len(src), 8):
         out += '\tdb ' + ', '.join(["#%02x" % b for b in src[i:i + 8]])
@@ -60,11 +64,12 @@ def to_hex_list_str_asm(src):
 
 
 def to_hex_list_str_basic(src):
+    """Writes sprites as BASIC-style hexadecimal data."""
     return "DATA %s\n" % ', '.join(["&H%02X" % b for b in src])
 
 
 def decombine_colors(indexes):
-    debug(f'decombine_colors({indexes})')
+    debug('decombining colors:', indexes)
     rest = list(indexes) # 1,4,5
     curr = rest.pop()
     removed = {}
@@ -73,7 +78,7 @@ def decombine_colors(indexes):
 
     if curr > 1 and len(rest) > 1:
         for c1, c2 in permutations(rest, 2):
-            if c1 | c2 == curr: # 1,4,5
+            if (c1 | c2) == curr: # 1,4,5
                 factor = False
                 debug(f'[1] decombine_colors({rest})')
                 nremoved, rest, nfactors = decombine_colors(rest)
@@ -154,7 +159,7 @@ class Sprite:
         data = { 'colors': [], 'patterns': [] }
 
         for cell in range(2):
-            for line_num in range(0, 16):
+            for line_num in range(16):
                 color = 0
                 try:
                     color = sorted(self.data[line_num].keys())[idx]
@@ -174,7 +179,7 @@ class Sprite:
 
 
 def build_lookup_table(palette):
-    # input: rgb tuple, output: colour index
+    """Return map where key is (r, g, b) and value is the palette index."""
     lookup = {c: i for i, c in enumerate(palette)} # palette lookup
 
     if len(palette) != 16:
@@ -186,27 +191,31 @@ def build_lookup_table(palette):
     return lookup
 
 
-def get_component_size(image, palette):
+def get_combination_size(image, palette):
+    """Get size of the OR-colour combinations for the whole image."""
     data = image.getdata()
     colors = {}
     w, h = image.size
 
     for y in range(0, h, DEF_H):
         for x in range(0, w, DEF_W):
-            tile = [data[x + i + ((y + j) * w)]
-                    for j in range(DEF_H) for i in range(DEF_W)]
-            cols = set([c for c in tile if c is not TRANS])
+            # separate current sprite data
+            pattern = [data[x + i + ((y + j) * w)]
+                       for j in range(DEF_H) for i in range(DEF_W)]
+            cols = set([c for c in pattern if c is not IMG_TRANS])
+            # detect colour not found in palette
             if len(cols := [c for c in cols if not c in palette]) > 0:
                 raise LookupError(cols)
 
             if not cols: continue
 
-            for j in range(16):
-                for i in range(16):
-                    color = tile[i + j * 16]
-                    if color != (0, 0, 0): colors[color] = True
+            # mark used colour
+            for j in range(DEF_H):
+                for i in range(DEF_W):
+                    color = pattern[i + j * DEF_W]
+                    if color != MSX_TRANS: colors[color] = True
 
-    return math.ceil(math.log2(len(colors)+0.00001))
+    return max(0, math.ceil(math.log2(len(colors)+0.00001)))
 
 
 def build_sprites(image, palette):
@@ -223,15 +232,15 @@ def build_sprites(image, palette):
 
     for y in range(0, h, DEF_H):
         for x in range(0, w, DEF_W):
-            tile = [data[x + i + ((y + j) * w)]
+            pattern = [data[x + i + ((y + j) * w)]
                     for j in range(DEF_H) for i in range(DEF_W)]
-            cols = set([c for c in tile if c is not TRANS])
+            cols = set([c for c in pattern if c is not IMG_TRANS])
             if not cols: continue
 
-            for j in range(16):
+            for j in range(DEF_H):
                 line = set() # all colors on current line
-                for i in range(16):
-                    idx = lookup[tile[i + j * 16]]
+                for i in range(DEF_W):
+                    idx = lookup[pattern[i + j * DEF_W]]
                     if idx: line.add(idx)
 
                 if not line: continue
@@ -244,7 +253,7 @@ def build_sprites(image, palette):
                     p = 7
                     comb = {}
                     for k in range(8):
-                        idx = lookup[tile[i + j * 16 + k]]
+                        idx = lookup[pattern[i + j * 16 + k]]
                         if idx in removed:
                             colors = removed[idx]
                             debug(f'colors={colors}')
@@ -316,7 +325,7 @@ def main():
 
     # Get mininum possible size and try to match
     try:
-        min_size = get_component_size(image, palette)
+        min_size = get_combination_size(image, palette)
         debug(f'min_size = {min_size}')
     except LookupError as e:
         parser.error("Colors used in the image must be present in the palette: %s" % e)
