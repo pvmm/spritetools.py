@@ -196,21 +196,21 @@ def build_lookup_table(palette):
 def get_palette_from_image(image):
     data = image.getdata()
     w, h = image.size
-    palette = {}
+    palette = set()
 
     for y in range(h):
         for x in range(w):
             pixel = data[x + y * DEF_W]
             if pixel == IMG_TRANS: continue
-            palette[pixel] = True
+            palette.add(pixel)
 
-    return ([IMG_TRANS] + list(sorted(palette.keys())) + FAKE_PAL)[0:MAX_COLORS]
+    return ([IMG_TRANS] + sorted(palette) + FAKE_PAL)[0:MAX_COLORS]
 
 
 def get_combination_size(image, palette):
     """Get number of colours used in OR-colour combinations for the whole image."""
     data = image.getdata()
-    colors = {}
+    colors = set()
     w, h = image.size
 
     for y in range(0, h, DEF_H):
@@ -229,7 +229,7 @@ def get_combination_size(image, palette):
             for j in range(DEF_H):
                 for i in range(DEF_W):
                     color = pattern[i + j * DEF_W]
-                    if color != IMG_TRANS: colors[color] = True
+                    if color != IMG_TRANS: colors.add(color)
 
     return max(0, math.ceil(math.log2(len(colors)+0.00001)))
 
@@ -267,7 +267,7 @@ def build_sprites(image, palette):
                     sprite.pos = x, y
                     byte = [0] * 16
                     p = 7
-                    comb = {}
+                    comb = set()
                     for k in range(8):
                         idx = lookup[pattern[i + j * 16 + k]]
                         if idx in removed:
@@ -276,14 +276,14 @@ def build_sprites(image, palette):
                             for c in colors:
                                 byte[c] |= 1 << p
                             for c1, c2 in permutations(colors, 2):
-                                comb[max(c1, c2)] = True
+                                comb.add(max(c1, c2))
                         elif idx > 0:
                             byte[idx] |= 1 << p
                         p -= 1
 
                     for color in line:
                         if byte[color] != 0:
-                            sprite.add_line(j, color, cell, byte[color], comb.get(color, False))
+                            sprite.add_line(j, color, cell, byte[color], color in comb)
 
             max_components = max(sprite.components, max_components)
             total_bytes += sprite.components * 32 
