@@ -57,6 +57,7 @@ def get_palette_from_image(image):
 
 
 def check_line(spriteno, lineno, colors, max_sprites):
+    debug(f'line number:', lineno)
     errors = []
     found = True
 
@@ -70,7 +71,7 @@ def check_line(spriteno, lineno, colors, max_sprites):
                 found = True
     if not found:
         debug('results: not found')
-        errors.append(f'sprite #{spriteno} at line #{lineno} cannot combine colors with only {max_sprites} sprites')
+        errors.append(f'sprite #{spriteno} at line #{lineno} cannot combine colors {colors} with only {max_sprites} sprites')
 
     return errors
 
@@ -84,14 +85,14 @@ def check_combinations(image, max_sprites, palette):
     debug('Transparent colour index =', palette.index(TRANS))
 
     for y in range(0, h, DEF_H):
-        for spriteno, x in enumerate(range(0, w, DEF_W)):
+        for spriteno, x in enumerate(range(0, w, DEF_W), start=1):
             # separate current sprite data
             pattern = [data[x + i + ((y + j) * w)]
                        for j in range(DEF_H) for i in range(DEF_W)]
 
-            for lineno, start in enumerate(range(0, w, DEF_W)):
+            for lineno, start in enumerate(range(0, 256, DEF_W), start=1):
                 colors = set(pattern[start : start + DEF_W]) - TRANS_SET
-                if colors:
+                if len(colors):
                     all_errors.extend(check_line(spriteno, lineno, colors, max_sprites))
 
     return all_errors
@@ -123,7 +124,6 @@ def main():
     if DEBUG:
         debug('Palette:')
         debug('--------')
-        debug(palette)
         for i, (r, g, b) in enumerate(palette):
             if (r, g, b) == (-1, -1, -1): continue
             debug(f'{i}: {r:02X}{g:02X}{b:02X}')
