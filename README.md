@@ -1,7 +1,12 @@
-![Original/sprites in OpenMSX](/docs/sprites.png "Original/sprites in OpenMSX")
+Sprite tools
+============
+
+The repository is a collection of sprite tools for the MSX2.
 
 png2sprites.py
 ==============
+
+![Original/sprites in OpenMSX](/docs/sprites.png "Original/sprites in OpenMSX")
 
 Converts png image into MSX2 sprites. Resulting sprites will always align perfectly over previous layer. Sample images are from the wiki https://www.msx.org/wiki/The_OR_Color. **png2sprites.py** is a heavily modified version of `png2sprites.py` script tool from reidrac's https://gitlab.com/reidrac/ubox-msx-lib set of tools and libraries.
 
@@ -25,13 +30,14 @@ Files
 How to use it
 -------------
 
-In addition to the source PNG image, png2sprites.py expects a palette file, which is basically a tuple of 16 RGB triplets and zeroth colour just removes the background from the original PNG file.
+In addition to the source PNG image, png2sprites.py may expect a palette file, which is basically a tuple of 16 RGB triplets and zeroth colour just removes the background from the original PNG file.
 
 ```
 (255,0,255),(0,0,0),(145,109,0),(109,72,0),(36,36,36),(72,72,72),(109,109,109),(255,255,255),(109,109,109),(0,72,218),(255,0,0),(218,182,145),(182,109,0),(0,145,72),(0,72,36),(0,0,0)
 ```
 
-Help message:
+Help message
+------------
 
 ```
 usage: png2sprites.py [-h] [--version] [-i ID] [-b] [-a] [-c] [-p PAL_FILE] [-m MIN] image
@@ -62,6 +68,36 @@ You can refresh sample results with:
 ./png2sprites.py -i snake -b -p samples/snake.pal samples/snake.png > samples/SNAKE.BAS
 ```
 
+spritecheck.py
+==============
+
+Checks if a sprite sheet respects OR-colour combination. You can specify maximum sprites per slot. If you select the default value 2, you can combine 3 colours per line (one colour for each sprite and an extra OR-colour). `spritecheck.py` accepts indexed images only.
+
+```
+./spritecheck.py -c 2 ./images/spritesheet.png
+```
+
+Help message
+------------
+
+```
+usage: spritecheck.py [-h] [--version] [-c MAX_SPRITES] [-t TRANS_COLOR] image
+
+Sprite Checker for MSX2 sprites
+
+positional arguments:
+  image                 image to examine
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  -c MAX_SPRITES, --count MAX_SPRITES
+                        maximum sprites per slot (default: 2)
+  -t TRANS_COLOR, --trans TRANS_COLOR
+                        define transparent color (default: 000000)
+
+Copyright (C) 2023 Pedro de Medeiros <pedro.medeiros@.gmail.com>
+```
 
 TODO
 ----
