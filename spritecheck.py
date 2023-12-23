@@ -34,10 +34,7 @@ __version__ = "0.1"
 MAX_COLORS = 16
 DEF_W = 16
 DEF_H = 16
-
-IMG_TRANS = (255, 0, 255)
-MSX_TRANS = (0, 0, 0)
-FAKE_PAL = [(-1, -1, -1)] * MAX_COLORS
+TRANS = (0, 0, 0)
 
 # Enable/disable DEBUG mode
 if os.environ.get('DEBUG', False):
@@ -48,58 +45,43 @@ else:
     debug = lambda *x, **y: None
 
 
-def build_lookup_table(palette):
-    """Return map where key is (r, g, b) and value is the palette index."""
-    lookup = {c: i for i, c in enumerate(palette)} # palette lookup
-
-    if len(palette) != MAX_COLORS:
-        raise IndexError
-    for color in palette:
-        if not all([type(c) == int for c in color]):
-            raise TypeError
-
-    return lookup
-
-
 def get_palette_from_image(image):
-    data = image.getdata()
-    w, h = image.size
-    palette = set()
+    bytes_ = image.getpalette()
+    palette = []
 
-    for pos in range(w*h):
-        pixel = data[pos]
-        if pixel == IMG_TRANS: continue
-        palette.add(pixel)
+    for start in range(0, 48, 3):
+        if bytes_[start:start + 3]:
+            palette.append(tuple(bytes_[start:start + 3]))
 
-    return ([IMG_TRANS] + list(sorted(palette)) + FAKE_PAL)[0:MAX_COLORS]
+    return palette
 
 
-def check_line(spriteno, lineno, colors, max_sprites, lookup):
+def check_line(spriteno, lineno, colors, max_sprites):
     errors = []
-    found = False
+    found = True
 
-    lookup3 = lambda *k: (lookup[k1], lookup[k2], lookup[k3])
-    for rgb_pixels in combinations(colors, max_sprites + 1):
-        indexes = set(map(lambda rgb: lookup[rgb], rgb_pixels))
-        #raise KeyError(f'color {e.args[0]} not found at sprite #{spriteno}, line #{lineno}')
+    for indexes in combinations(colors, max_sprites + 1):
+        found = False
         for operators in combinations(indexes, max_sprites):
-            result = (indexes - set(operators)).pop()
-            debug(indexes, set(operators), result)
+            result = (set(indexes) - set(operators)).pop()
             mask = reduce(int.__or__, operators)
-            if result & mask == result: found = True
-    debug('---------')
+            if result == mask:
+                debug(f'{operators=}, {result=}, {mask=}, found: {result==mask}')
+                found = True
     if not found:
+        debug('results: not found')
         errors.append(f'sprite #{spriteno} at line #{lineno} cannot combine colors with only {max_sprites} sprites')
 
     return errors
 
 
-def check_combinations(image, max_sprites, lookup):
+def check_combinations(image, max_sprites, palette):
     """Get number of colours used in OR-colour combinations for the whole image."""
     data = image.getdata()
     w, h = image.size
     all_errors = []
-    TRANS_SET = set([IMG_TRANS])
+    TRANS_SET = set([palette.index(TRANS)])
+    debug('Transparent colour index =', palette.index(TRANS))
 
     for y in range(0, h, DEF_H):
         for spriteno, x in enumerate(range(0, w, DEF_W)):
@@ -109,7 +91,8 @@ def check_combinations(image, max_sprites, lookup):
 
             for lineno, start in enumerate(range(0, w, DEF_W)):
                 colors = set(pattern[start : start + DEF_W]) - TRANS_SET
-                all_errors.extend(check_line(spriteno, lineno, colors, max_sprites, lookup))
+                if colors:
+                    all_errors.extend(check_line(spriteno, lineno, colors, max_sprites))
 
     return all_errors
 
@@ -133,11 +116,14 @@ def main():
     except IOError:
         parser.error("failed to open the image")
 
-    if image.mode != "RGB":
-        parser.error("not a RGB image (%s detected)" % image.mode)
+    if image.mode != 'P':
+        parser.error("not an indexed image (%s detected)" % image.mode)
 
     palette = get_palette_from_image(image)
     if DEBUG:
+        debug('Palette:')
+        debug('--------')
+        debug(palette)
         for i, (r, g, b) in enumerate(palette):
             if (r, g, b) == (-1, -1, -1): continue
             debug(f'{i}: {r:02X}{g:02X}{b:02X}')
@@ -151,10 +137,10 @@ def main():
         parser.error("%s size is not multiple of sprite size (%s, %s)" %
                      (args.image, DEF_W, DEF_H))
 
-    lookup = build_lookup_table(palette)
-    errors = check_combinations(image, args.max_sprites, lookup)
-    for error in errors:
-        print(error)
+    errors = check_combinations(image, args.max_sprites, palette)
+    if errors:
+        for error in errors:
+            print(error)
     else:
         print('no errors detected')
 
