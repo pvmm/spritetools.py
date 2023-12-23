@@ -31,7 +31,7 @@ from argparse import ArgumentParser
 from itertools import permutations
 from PIL import Image
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 MAX_COLORS = 16
 DEF_W = 16
@@ -294,7 +294,7 @@ def build_sprites(image, palette):
 
 def main():
     parser = ArgumentParser(description="PNG to MSX2 sprites",
-                            epilog="""Copyright (C) 2022 Pedro de Medeiros <pedro.medeiros@.gmail.com>"""
+                            epilog="""Copyright (C) 2022-2023 Pedro de Medeiros <pedro.medeiros@.gmail.com>"""
                             )
 
     parser.add_argument(
