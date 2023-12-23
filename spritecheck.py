@@ -35,6 +35,7 @@ MAX_COLORS = 16
 DEF_W = 16
 DEF_H = 16
 TRANS = (0, 0, 0)
+trans_color = TRANS
 
 # Enable/disable DEBUG mode
 if os.environ.get('DEBUG', False):
@@ -56,7 +57,7 @@ def get_palette_from_image(image):
     return palette
 
 
-def check_line(spriteno, lineno, colors, max_sprites):
+def check_line(sprite_x, sprite_y, lineno, colors, max_sprites):
     debug(f'line number:', lineno)
     errors = []
     found = True
@@ -71,7 +72,7 @@ def check_line(spriteno, lineno, colors, max_sprites):
                 found = True
     if not found:
         debug('results: not found')
-        errors.append(f'sprite #{spriteno} at line #{lineno} cannot combine colors {colors} with only {max_sprites} sprites')
+        errors.append(f'sprite ({sprite_x}, {sprite_y}) at line #{lineno} cannot combine colors {colors} with only {max_sprites} sprites')
 
     return errors
 
@@ -84,16 +85,19 @@ def check_combinations(image, max_sprites, palette):
     TRANS_SET = set([palette.index(TRANS)])
     debug('Transparent colour index =', palette.index(TRANS))
 
-    for y in range(0, h, DEF_H):
-        for spriteno, x in enumerate(range(0, w, DEF_W), start=1):
+    for sprite_y, y in enumerate(range(0, h, DEF_H)):
+        for sprite_x, x in enumerate(range(0, w, DEF_W)):
             # separate current sprite data
             pattern = [data[x + i + ((y + j) * w)]
                        for j in range(DEF_H) for i in range(DEF_W)]
 
-            for lineno, start in enumerate(range(0, 256, DEF_W), start=1):
+            for lineno, start in enumerate(range(0, 256, DEF_W), start=0):
+                colors = set(pattern[start : start + DEF_W])
+                debug('colors1=', colors)
                 colors = set(pattern[start : start + DEF_W]) - TRANS_SET
+                debug('colors2=', colors)
                 if len(colors):
-                    all_errors.extend(check_line(spriteno, lineno, colors, max_sprites))
+                    all_errors.extend(check_line(sprite_x, sprite_y, lineno, colors, max_sprites))
 
     return all_errors
 
@@ -107,6 +111,8 @@ def main():
         "--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument("-c", "--count", dest="max_sprites", default=2, type=int,
                         help="maximum sprites per slot (default: 2)")
+    parser.add_argument("-t", "--trans", dest="trans_color", default='000000', type=str,
+                        help="define transparent color (default: 000000)")
 
     parser.add_argument("image", help="image to examine")
 
@@ -136,6 +142,13 @@ def main():
     if w % DEF_W or h % DEF_H:
         parser.error("%s size is not multiple of sprite size (%s, %s)" %
                      (args.image, DEF_W, DEF_H))
+
+    # Convert hex string to RGB values
+    if args.trans_color:
+        red = int(args.trans_color[0:2], 16)
+        green = int(args.trans_color[2:4], 16)
+        blue = int(args.trans_color[4:6], 16)
+        trans_color = (red, green, blue)
 
     errors = check_combinations(image, args.max_sprites, palette)
     if errors:
