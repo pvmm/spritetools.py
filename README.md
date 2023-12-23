@@ -30,11 +30,13 @@ Files
 How to use it
 -------------
 
-In addition to the source PNG image, png2sprites.py may expect a palette file, which is basically a tuple of 16 RGB triplets and zeroth colour just removes the background from the original PNG file.
+In addition to the source PNG image, you may provide a palette file, which is basically a tuple of 16 RGB triplets. The first colour in the tuple is MSX colour index 0 (transparent), which `png2sprites.py` uses to remove the background from the original PNG file.
 
 ```
 (255,0,255),(0,0,0),(145,109,0),(109,72,0),(36,36,36),(72,72,72),(109,109,109),(255,255,255),(109,109,109),(0,72,218),(255,0,0),(218,182,145),(182,109,0),(0,145,72),(0,72,36),(0,0,0)
 ```
+
+If you don't provide a palette file, `png2sprites.py` will scan the image and generate its own palette.
 
 Help message
 ------------
@@ -59,7 +61,7 @@ options:
   -m, --minimise        try to minimise palette by brute force
 ```
 
-The `--minimise` option will attempt to minimise the number of sprites by or-color replacement after palette permutation and may take several seconds if not minutes. It is an experimental feature and may increase your carbon footprint and return stupid results.
+The `--minimise` option will attempt to minimise the number of sprites by OR-colour replacement after palette permutation and may take several seconds if not minutes. It is an experimental feature and may increase your carbon footprint and return stupid results.
 
 You can refresh sample results with:
 
@@ -71,10 +73,10 @@ You can refresh sample results with:
 spritecheck.py
 ==============
 
-Checks if a sprite sheet respects OR-colour combination. You can specify maximum sprites per slot. If you select the default value 2, you can combine 3 colours per line (one colour for each sprite and an extra OR-colour). `spritecheck.py` accepts indexed images only.
+Checks if a sprite sheet respects OR-colour combination. You can specify maximum sprites per slot. Default value `2` allows up to 3 colours per line (one colour for each sprite and the extra OR-colour, `c3 = c1 | c2`), while value `3` allows up to 7 colours per line: c1, c2, c3, c1 | c2, c1 | c3, c2 | c3, c1 | c2 | c3. `spritecheck.py` accepts indexed images only.
 
 ```
-./spritecheck.py -c 2 ./images/spritesheet.png
+./spritecheck.py -c 2 spritesheet.png
 ```
 
 Help message
@@ -102,8 +104,13 @@ Copyright (C) 2023 Pedro de Medeiros <pedro.medeiros@.gmail.com>
 TODO
 ----
 
+For `png2sprites.py`:
 * palette export feature;
 * ~~palette optimizations to reduce sprite count;~~
 * ~~make palette file optional;~~
 * add an option to optimise away palette file;
 * make palette minimisation faster;
+
+For `spritecheck.py`:
+* allow user to somehow specify where in the image the sprites are by (x, y) coordinates;
+* create a copy of the original sprite sheet pointing out where the sprite conversion failed;
