@@ -222,7 +222,7 @@ def get_combination_size(image, palette):
             pattern = [data[x + i + ((y + j) * w)]
                        for j in range(DEF_H) for i in range(DEF_W)]
             cols = set([c for c in pattern if c != IMG_TRANS])
-            # detect colour not found in palette
+            # detect colour not found in palette (for a user-defined palette)
             if len(xcols := [c for c in cols if not c in palette]) > 0:
                 raise LookupError(xcols)
 
@@ -251,14 +251,13 @@ def build_sprites(image, palette):
             pattern = [data[x + i + ((y + j) * w)]
                     for j in range(DEF_H) for i in range(DEF_W)]
             cols = set([c for c in pattern if c is not IMG_TRANS])
+            # empty sprite: do nothing and go to the next one
             if not cols: continue
 
             for j in range(DEF_H):
-                line = set() # all colors on current line
-                for i in range(DEF_W):
-                    idx = lookup[pattern[i + j * DEF_W]]
-                    if idx: line.add(idx)
-
+                # line receives the colors in a sprite line
+                line = set(map(lambda rgb: lookup[rgb], pattern[j * DEF_W : (j + 1) * DEF_W])) - {0}
+                # empty line: do nothing and go to the next one
                 if not line: continue
                 removed, _, line = decombine_colors(list(line))
 
