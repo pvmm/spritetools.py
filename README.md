@@ -3,19 +3,12 @@ Sprite tools
 
 The repository is a collection of sprite tools for the MSX2.
 
-png2sprites.py
-==============
-
-![Original/sprites in OpenMSX](/docs/sprites.png "Original/sprites in OpenMSX")
-
-Converts png image into MSX2 sprites. Resulting sprites will always align perfectly over previous layer. Sample images are from the wiki https://www.msx.org/wiki/The_OR_Color. **png2sprites.py** is a heavily modified version of `png2sprites.py` script tool from reidrac's https://gitlab.com/reidrac/ubox-msx-lib set of tools and libraries.
-
-
 Files
 -----
 
 * `README.md`: this file
 * `png2sprites.py`: conversion script that reads PNG files in RGB and converts them into MSX2 compatible VRAM sprite data.
+* `spritecheck.py`: verifies if sprite sheet is MSX2 VRAM-compatible.
 * `samples/wit.pal`: 16-colour palette triples (8-bit RGB values) that specify an MSX2 palette. The zeroth colour is used to eliminate PNG background colour.
 * `samples/wit.png`: sample image of Wit from Treasure of Uşas.
 * `samples/WIT.BAS`: simple BASIC code that displays Wit sprite in SCREEN 5.
@@ -25,6 +18,14 @@ Files
 * `samples/palette.pal`: 16-colour palette triples (8-bit RGB values) used in palette.png.
 * `samples/palette.png`: sample image using all colours.
 * `samples/PALETTE.BAS`: simple BASIC code the displays the sprite generated from palette.png.
+
+png2sprites.py
+==============
+
+![Original/sprites in OpenMSX](/docs/sprites.png "Original/sprites in OpenMSX")
+
+Converts png image into MSX2 sprites. Resulting sprites will always align perfectly over previous layer. Sample images are from the wiki https://www.msx.org/wiki/The_OR_Color. **png2sprites.py** is a heavily modified version of `png2sprites.py` script tool from reidrac's https://gitlab.com/reidrac/ubox-msx-lib set of tools and libraries.
+
 
 
 How to use it
