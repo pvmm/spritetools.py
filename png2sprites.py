@@ -184,7 +184,7 @@ def build_lookup_table(palette):
     """Return map where key is (r, g, b) and value is the palette index."""
     lookup = {c: i for i, c in enumerate(palette)} # palette lookup
 
-    if len(palette) != MAX_COLORS:
+    if len(palette) > MAX_COLORS:
         raise IndexError
     for color in palette:
         if not all([type(c) == int for c in color]):
@@ -204,7 +204,8 @@ def get_palette_from_image(image):
             if pixel == IMG_TRANS: continue
             palette.add(pixel)
 
-    return ([IMG_TRANS] + sorted(palette) + FAKE_PAL)[0:MAX_COLORS]
+    #return ([IMG_TRANS] + sorted(palette) + FAKE_PAL)[0:MAX_COLORS]
+    return ([IMG_TRANS] + sorted(palette))
 
 
 def get_combination_size(image, palette):
