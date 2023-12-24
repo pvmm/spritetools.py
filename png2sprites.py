@@ -211,8 +211,10 @@ def get_combination_size(image, palette):
     """Get number of colours used in OR-colour combinations for the whole image."""
     data = image.getdata()
     colors = set()
+    num_colors = 0
     w, h = image.size
 
+    # iterate over each sprite individually
     for y in range(0, h, DEF_H):
         for x in range(0, w, DEF_W):
             # separate current sprite data
@@ -223,15 +225,12 @@ def get_combination_size(image, palette):
             if len(xcols := [c for c in cols if not c in palette]) > 0:
                 raise LookupError(xcols)
 
-            if not cols: continue
+            # mark simultaneously used colours on a single line
+            for start in range(0, len(pattern), DEF_W):
+                num_colors = max(num_colors, len(set(pattern[start : start + DEF_W]) - {IMG_TRANS}))
+            debug(f'{num_colors = }')
 
-            # mark used colour
-            for j in range(DEF_H):
-                for i in range(DEF_W):
-                    color = pattern[i + j * DEF_W]
-                    if color != IMG_TRANS: colors.add(color)
-
-    return max(0, math.ceil(math.log2(len(colors)+0.00001)))
+    return max(0, math.ceil(math.log2(num_colors+0.00001)))
 
 
 def build_sprites(image, palette):
