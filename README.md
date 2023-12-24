@@ -74,7 +74,7 @@ You can refresh sample results with:
 spritecheck.py
 ==============
 
-Checks if a sprite sheet respects OR-colour combination. You can specify maximum sprites per slot. Default value `2` allows up to 3 colours per line (one colour for each sprite and the extra OR-colour, `c3 = c1 | c2`), while value `3` allows up to 7 colours per line: c1, c2, c3, c1 | c2, c1 | c3, c2 | c3, c1 | c2 | c3. `spritecheck.py` accepts indexed images only.
+Checks if a sprite sheet respects OR-colour combination. You can specify maximum sprites per slot. Default value `2` allows up to 3 colours per line (one colour for each sprite and the extra OR-colour, `c3 = c1 | c2`), while value `3` allows up to 7 colours per line: c1, c2, c3, c1 | c2, c1 | c3, c2 | c3, c1 | c2 | c3. **`spritecheck.py` accepts indexed images with a previously optimised palette only.**
 
 ```
 ./spritecheck.py -c 2 spritesheet.png
