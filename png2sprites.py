@@ -73,31 +73,31 @@ def to_hex_list_str_basic(src):
 def decombine_colors(indexes):
     debug('decombining colors:', indexes)
     rest = list(indexes) # 1,4,5
-    curr = rest.pop()
+    cur = rest.pop()
     removed = {}
     factors = []
     factor = True
 
-    if curr > 1 and len(rest) > 1:
+    if cur > 1 and len(rest) > 1:
         for c1, c2 in permutations(rest, 2):
-            if (c1 | c2) == curr: # 1,4,5
+            if (c1 | c2) == cur: # 1,4,5
                 factor = False
                 debug(f'[1] decombine_colors({rest})')
                 nremoved, rest, nfactors = decombine_colors(rest)
                 if c2 in nfactors:
-                    if removed.get(curr, False):
-                        debug(f'(0) removed[{curr}].append({c2})')
-                        removed[curr].append(c2)
+                    if removed.get(cur, False):
+                        debug(f'(0) removed[{cur}].append({c2})')
+                        removed[cur].append(c2)
                     else:
-                        debug(f'(1) removed[{curr}] = [{c2}]')
-                        removed[curr] = [c2]
+                        debug(f'(1) removed[{cur}] = [{c2}]')
+                        removed[cur] = [c2]
                 elif nremoved.get(c2, False):
-                    if removed.get(curr, False):
-                        debug(f'(2) removed[{curr}].append({nremoved[c2]})')
-                        removed[curr].append(nremoved[c2])
+                    if removed.get(cur, False):
+                        debug(f'(2) removed[{cur}].append({nremoved[c2]})')
+                        removed[cur].append(nremoved[c2])
                     else:
-                        debug(f'(3) removed[{curr}] = {nremoved[c2]}')
-                        removed[curr] = list(nremoved[c2])
+                        debug(f'(3) removed[{cur}] = {nremoved[c2]}')
+                        removed[cur] = list(nremoved[c2])
                 removed.update(nremoved)
                 factors.extend(nfactors)
 
@@ -105,21 +105,21 @@ def decombine_colors(indexes):
                     debug(f'[2] decombine_colors({rest})')
                     nremoved, rest, nfactors = decombine_colors(rest)
                     if c1 in nfactors:
-                        if removed.get(curr, False):
-                            debug(f'(4) removed[{curr}].append({c1})')
-                            removed[curr].append(c1)
+                        if removed.get(cur, False):
+                            debug(f'(4) removed[{cur}].append({c1})')
+                            removed[cur].append(c1)
                         else:
-                            debug(f'(5) removed[{curr}] = [{c1}]')
-                            removed[curr] = [c1]
+                            debug(f'(5) removed[{cur}] = [{c1}]')
+                            removed[cur] = [c1]
                 else:
-                    if removed.get(curr, False):
-                        debug(f'(6) removed[{curr}].append({c1})')
-                        removed[curr].append(c1)
+                    if removed.get(cur, False):
+                        debug(f'(6) removed[{cur}].append({c1})')
+                        removed[cur].append(c1)
                     else:
-                        debug(f'(7) removed[{curr}] = [{c1}]')
-                        removed[curr] = [c1]
+                        debug(f'(7) removed[{cur}] = [{c1}]')
+                        removed[cur] = [c1]
 
-                debug(f'non-factor: returning removed={removed}, rest={rest}, factors={factors}, curr={curr}')
+                debug(f'non-factor: returning removed={removed}, rest={rest}, factors={factors}, cur={cur}')
                 return removed, rest, factors
 
     if factor:
@@ -127,12 +127,12 @@ def decombine_colors(indexes):
             debug(f'[3] decombine_colors({rest})')
             nremoved, rest, nfactors = decombine_colors(rest)
             removed.update(nremoved)
-            factors.append(curr)
+            factors.append(cur)
             factors.extend(nfactors)
-            debug(f'(1) factor: returning removed={removed}, rest={rest}, factors={factors}, curr={curr}')
+            debug(f'(1) factor: returning removed={removed}, rest={rest}, factors={factors}, cur={cur}')
             return removed, rest, factors
         factors.extend(indexes)
-        debug(f'(2) factor: returning removed={removed}, rest={[]}, factors={factors}, curr={curr}')
+        debug(f'(2) factor: returning removed={removed}, rest={[]}, factors={factors}, cur={cur}')
         return removed, [], factors
 
     debug(f'finished: returning removed={removed}, rest={rest}, factors={factors}')
@@ -211,7 +211,6 @@ def get_palette_from_image(image):
 def get_combination_size(image, palette):
     """Get number of colours used in OR-colour combinations for the whole image."""
     data = image.getdata()
-    colors = set()
     num_colors = 0
     w, h = image.size
 
@@ -229,8 +228,8 @@ def get_combination_size(image, palette):
             # mark simultaneously used colours on a single line
             for start in range(0, len(pattern), DEF_W):
                 num_colors = max(num_colors, len(set(pattern[start : start + DEF_W]) - {IMG_TRANS}))
-            debug(f'{num_colors = }')
 
+    debug(f'{num_colors = }')
     return max(0, math.ceil(math.log2(num_colors+0.00001)))
 
 
