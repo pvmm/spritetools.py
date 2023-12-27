@@ -154,16 +154,16 @@ class Sprite:
         self.data = [dict() for i in range(DEF_H)]
         self.pos = None
 
-    def add_line(self, line_num, color, cell, pattern):
+    def add_line(self, line_num, color, cell, pattern, or_colour_bit):
         self.colors.add(color)
         # Add new pattern data for a new colour if necessary
         if color not in self.data[line_num]:
             # 0: left pattern, 1: right pattern
             self.data[line_num][color] = [0, 0]
         self.data[line_num][color][cell] = pattern
-        # TODO: understand this part
-        #if combine:
-        #    self.data[line_num][color][0] = -abs(self.data[line_num][color][0])
+        # Activate CC (OR-colour flag)
+        if or_colour_bit:
+            self.data[line_num][color][0] = -self.data[line_num][color][0]
         self.components = max(self.components, len(self.data[line_num]))
         debug(f'** sprite line has {self.components} components')
 
@@ -179,7 +179,9 @@ class Sprite:
                     byte = 0
                     with contextlib.suppress(KeyError):
                         byte = self.data[line_num][color][cell]
+                    # Activate OR-colour bit in colour.
                     if not cell: data['colors'].append(color + (64 if byte < 0 else 0))
+                    # Remove OR-colour bit from colour.
                     data['patterns'].append(abs(byte))
                 except IndexError:
                     if not cell: data['colors'].append(0)
@@ -314,6 +316,7 @@ def build_sprites(image, palette):
                     # bytes for all 16 possible colours
                     byte = [0] * 16
                     p = 7
+                    or_colour = set()
                     # Iterate over each bit of the left and right
                     for k in range(8):
                         index = lookup[pattern[i + j * 16 + k]]
@@ -324,6 +327,9 @@ def build_sprites(image, palette):
                             for c in colors:
                                 debug(f'* combo: set pixel at x={p} to colour={c}')
                                 byte[c] |= 1 << p
+                            # Set CC bit on all sprites with lower priority.
+                            for c1, c2 in permutations(colors, 2):
+                                or_colour.add(max(c1, c2))
                         elif index > 0:
                             # Draw pixel for prime colour.
                             debug(f'* prime: set pixel at x={p} to colour={index}')
@@ -332,8 +338,8 @@ def build_sprites(image, palette):
 
                     for color in indexes:
                         # Add to sprite only the used bytes.
-                        if byte[color] != 0: # and not color in removed:
-                            sprite.add_line(j, color, cell, byte[color])
+                        if byte[color] != 0:
+                            sprite.add_line(j, color, cell, byte[color], color in or_colour)
                 # debug sprite line
                 debug('***', sprite.data[j])
 
