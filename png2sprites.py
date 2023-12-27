@@ -151,7 +151,7 @@ class Sprite:
     def __init__(self, palette):
         self.colors = set()
         self.components = 0
-        self.data = [dict() for i in range(16)]
+        self.data = [dict() for i in range(DEF_H)]
         self.pos = None
 
     def add_line(self, line_num, color, cell, pattern):
@@ -334,6 +334,8 @@ def build_sprites(image, palette):
                         # Add to sprite only the used bytes.
                         if byte[color] != 0: # and not color in removed:
                             sprite.add_line(j, color, cell, byte[color])
+                # debug sprite line
+                debug('***', sprite.data[j])
 
             # Gather current sprite data.
             max_components = max(sprite.components, max_components)
@@ -427,12 +429,13 @@ def main():
         debug('========================================')
         # Get out there.
         if not best_sprites:
+            current_components = components
             best_sprites = sprites
             best_pal = pal
-            current_components = components
         # Optimise.
         if args.min and components == min_components:
             debug('Minimum component configuration found.')
+            current_components = components
             best_sprites = sprites
             best_pal = pal
             break
@@ -446,6 +449,7 @@ def main():
             out.append(sprite.get_component(count))
             pos.append(sprite.pos)
 
+    debug(f'patterns = ', out)
     debug(f'Total bytes: {total_bytes}')
     debug(f'Best palette: {best_pal}')
 
