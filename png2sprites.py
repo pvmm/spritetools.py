@@ -151,19 +151,21 @@ class Sprite:
     def __init__(self, palette):
         self.colors = set()
         self.components = 0
-        self.data = []
+        self.data = [dict() for i in range(16)]
         self.pos = None
-        for i in range(16):
-            self.data.append(dict())
 
-    def add_line(self, line_num, color, cell, pattern, combine=False):
+    def add_line(self, line_num, color, cell, pattern):
         self.colors.add(color)
+        # Add new pattern data for a new colour if necessary
         if color not in self.data[line_num]:
+            # 0: left pattern, 1: right pattern
             self.data[line_num][color] = [0, 0]
         self.data[line_num][color][cell] = pattern
-        if combine:
-            self.data[line_num][color][0] = -abs(self.data[line_num][color][0])
+        # TODO: understand this part
+        #if combine:
+        #    self.data[line_num][color][0] = -abs(self.data[line_num][color][0])
         self.components = max(self.components, len(self.data[line_num]))
+        debug(f'** sprite line has {self.components} components')
 
     def get_component(self, idx):
         data = { 'colors': [], 'patterns': [] }
@@ -172,6 +174,7 @@ class Sprite:
             for line_num in range(16):
                 color = 0
                 try:
+                    # Convert position index into colour index
                     color = sorted(self.data[line_num].keys())[idx]
                     byte = 0
                     with contextlib.suppress(KeyError):
@@ -240,21 +243,28 @@ def get_min_combination_size(image, palette):
     return max(0, math.ceil(math.log2(num_colors+0.00001)))
 
 
-def decompose_colors(colors, prime=set(), comb=set()):
+def decompose_indexes(colors, prime=set(), comb=set()):
     """Count how many colours were removed in a sprite line."""
     primes = set()
     combs = set()
 
     if len(colors) > 2:
         for c in combinations(colors, 2):
+            debug(f'{c = }')
             if combs.intersection(c):
                 continue
             # check third colour in OR-colour combination
+            #1 | 3 = 3
             third = c[0] | c[1]
-            if third in colors:
-                colors -= {third}
+            if (not third in c) and (third in colors):
                 combs.add(third)
                 primes.add(c[0])
+                primes.add(c[1])
+                #sys.exit(1)
+            #if third in colors:
+            #    colors -= {third}
+            #    combs.add(third)
+            #    primes.add(c[0])
     return combs, set(colors) - combs
 
 
@@ -262,6 +272,8 @@ def build_sprites(image, palette):
     w, h = image.size
     data = image.getdata()
     lookup = build_lookup_table(palette)
+    debug(f'** {lookup = }')
+    index_lookup = lambda rgb: lookup[rgb]
     sprites = []
 
     # Create sprites for each 16x16 block from the image.
@@ -285,23 +297,24 @@ def build_sprites(image, palette):
                 debug(f'building sprite line {j}')
                 cols = set([c for c in pattern[j * DEF_W: (j + 1) * DEF_W]]) - {IMG_TRANS}
                 # indexes receives colours from the line
-                indexes = set(map(lambda rgb: lookup[rgb], cols))
-                debug(f'line colors: {indexes}')
+                indexes = list(map(index_lookup, cols))
+                debug(f'line colours: {indexes} = ({cols})')
                 # empty indexes: do nothing and go to the next one
                 if not indexes: continue
-                removed, primes = decompose_colors(indexes)
+                removed, primes = decompose_indexes(set(indexes))
                 debug(f'decomposed colours: {removed = }, {primes = }')
 
-                # Draw pixel in sprite byte order.
+                # Fill line pattern data on the left and right.
                 for cell, i in ((0, 0), (1, 8)):
                     debug(f'sprite byte: {cell}')
                     sprite = sprites[(x // DEF_W) + (y // DEF_H) * (w // DEF_W)]
+                    debug(f'sprite {x = }, {y = }')
+                    # TODO: check if I can remove this
                     sprite.pos = x, y
                     # bytes for all 16 possible colours
                     byte = [0] * 16
                     p = 7
-                    comb = set()
-                    # Iterate over each bit
+                    # Iterate over each bit of the left and right
                     for k in range(8):
                         index = lookup[pattern[i + j * 16 + k]]
                         if index in removed:
@@ -311,8 +324,6 @@ def build_sprites(image, palette):
                             for c in colors:
                                 debug(f'* combo: set pixel at x={p} to colour={c}')
                                 byte[c] |= 1 << p
-                            for c1, c2 in permutations(colors, 2):
-                                comb.add(max(c1, c2))
                         elif index > 0:
                             # Draw pixel for prime colour.
                             debug(f'* prime: set pixel at x={p} to colour={index}')
@@ -321,9 +332,10 @@ def build_sprites(image, palette):
 
                     for color in indexes:
                         # Add to sprite only the used bytes.
-                        if byte[color] != 0:
-                            sprite.add_line(j, color, cell, byte[color], color in comb)
+                        if byte[color] != 0: # and not color in removed:
+                            sprite.add_line(j, color, cell, byte[color])
 
+            # Gather current sprite data.
             max_components = max(sprite.components, max_components)
             total_bytes += sprite.components * 32
             total_bytes += sprite.components * 16
@@ -389,12 +401,13 @@ def main():
 
     # Get mininum possible size and try to match
     try:
-        min_size = get_min_combination_size(image, palette)
-        debug(f'Minimal sprite count: {min_size}')
+        min_components = get_min_combination_size(image, palette)
+        debug(f'Minimal sprite count: {min_components}')
     except LookupError as e:
         parser.error("Colors used in the image must be present in the palette: %s" % e)
 
-    min_components = 15
+    current_components = 0
+    total_bytes = 0
     best_sprites = None
     best_pal = None
     num = 0
@@ -404,28 +417,37 @@ def main():
     else:
         collection = (tuple(palette[1:]),)
 
+    debug('** begin sprite building...')
     for tmp in collection:
+        # Fix palette position 0 (transparent colour)
         pal = (palette[0],) + tmp
+        debug(f'** current palette: {pal}')
         sprites, components, total_bytes = build_sprites(image, pal)
-        if components < min_components:
-            min_components = components
-            debug('\nmin_components is now', min_components)
-            best_sprites, best_pal = sprites, pal
-        if components == min_size:
+        debug(f'** current loop components count: {components}')
+        debug('========================================')
+        # Get out there.
+        if not best_sprites:
+            best_sprites = sprites
+            best_pal = pal
+            current_components = components
+        # Optimise.
+        if args.min and components == min_components:
+            debug('Minimum component configuration found.')
+            best_sprites = sprites
+            best_pal = pal
             break
 
-    debug(f'components = {min_components}')
+    debug(f'Sprite components: {current_components}')
     out = []
     pos = []
-    total_bytes = 0
 
     for sprite in best_sprites:
         for count in range(sprite.components):
             out.append(sprite.get_component(count))
             pos.append(sprite.pos)
 
-    debug(f'total_bytes = {total_bytes}')
-    debug(f'pal = {best_pal}')
+    debug(f'Total bytes: {total_bytes}')
+    debug(f'Best palette: {best_pal}')
 
     if args.basic:
         line_num = 100
