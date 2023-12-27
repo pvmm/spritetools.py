@@ -282,34 +282,45 @@ def build_sprites(image, palette):
             if not cols: continue
 
             for j in range(DEF_H):
-                # indexes receives colors from the line
+                debug(f'building sprite line {j}')
+                cols = set([c for c in pattern[j * DEF_W: (j + 1) * DEF_W]]) - {IMG_TRANS}
+                # indexes receives colours from the line
                 indexes = set(map(lambda rgb: lookup[rgb], cols))
+                debug(f'line colors: {indexes}')
                 # empty indexes: do nothing and go to the next one
                 if not indexes: continue
                 removed, primes = decompose_colors(indexes)
-                debug(f'{removed = }, {primes = }')
+                debug(f'decomposed colours: {removed = }, {primes = }')
 
+                # Draw pixel in sprite byte order.
                 for cell, i in ((0, 0), (1, 8)):
+                    debug(f'sprite byte: {cell}')
                     sprite = sprites[(x // DEF_W) + (y // DEF_H) * (w // DEF_W)]
                     sprite.pos = x, y
+                    # bytes for all 16 possible colours
                     byte = [0] * 16
                     p = 7
                     comb = set()
+                    # Iterate over each bit
                     for k in range(8):
                         index = lookup[pattern[i + j * 16 + k]]
                         if index in removed:
-                            debug(f'{ index = }')
+                            # Draw pixel for colour combination.
                             colors = lookup_combination(index)
-                            debug(f'colors={colors}')
+                            debug(f'combo colour {index} decomposed to colours: {colors}')
                             for c in colors:
+                                debug(f'* combo: set pixel at x={p} to colour={c}')
                                 byte[c] |= 1 << p
                             for c1, c2 in permutations(colors, 2):
                                 comb.add(max(c1, c2))
                         elif index > 0:
+                            # Draw pixel for prime colour.
+                            debug(f'* prime: set pixel at x={p} to colour={index}')
                             byte[index] |= 1 << p
                         p -= 1
 
                     for color in indexes:
+                        # Add to sprite only the used bytes.
                         if byte[color] != 0:
                             sprite.add_line(j, color, cell, byte[color], color in comb)
 
@@ -379,7 +390,7 @@ def main():
     # Get mininum possible size and try to match
     try:
         min_size = get_min_combination_size(image, palette)
-        debug(f'min_size = {min_size}')
+        debug(f'Minimal sprite count: {min_size}')
     except LookupError as e:
         parser.error("Colors used in the image must be present in the palette: %s" % e)
 
