@@ -165,7 +165,7 @@ class SpriteLine:
         self.cc = bit
 
     def cc_bit(self):
-        return self.cc
+        return 64 * self.cc
 
     def __str__(self):
         return '%s' % self.patterns
@@ -178,7 +178,7 @@ class Sprite:
         self.data = [dict() for i in range(DEF_H)]
         self.pos = None
 
-    def add_line(self, line_num, color, cell, pattern, or_color_bit):
+    def add_line(self, line_num, color, cell, pattern, or_color_bit = False):
         self.colors.add(color)
         # Add new pattern data for a new colour if necessary
         if color not in self.data[line_num]:
@@ -196,9 +196,9 @@ class Sprite:
         for cell in range(2):
             for line_num in range(16):
                 try:
-                    #debug(sorted(self.data[line_num])
                     # Convert position index into colour index
                     color = sorted(self.data[line_num].keys())[idx]
+                    debug(f'{idx=} -> {color=}, colors:', sorted(self.data[line_num]))
 
                     try:
                         byte = self.data[line_num][color][cell]
@@ -215,7 +215,7 @@ class Sprite:
         return data
 
     def size(self):
-        return 16 * self.components, 32 * self.components
+        return 16 * self.components, 32 * self.components # bytes
 
 
 def build_lookup_table(palette):
