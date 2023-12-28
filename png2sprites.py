@@ -70,6 +70,16 @@ def to_hex_list_str_basic(src):
     return "DATA %s\n" % ', '.join(["&H%02X" % b for b in src])
 
 
+def rgb_list_to_str(lst):
+    """Writes output as C-style hexadecimal data."""
+    return ', '.join(["(%i, %i, %i)" % (r, g, b) for r, g, b in lst])
+
+
+def rgb_list_to_hex_str(lst):
+    """Writes output as C-style hexadecimal data."""
+    return ', '.join(["(%x, %x, %x)" % (r, g, b) for r, g, b in lst])
+
+
 def lookup_combination(index):
     # OR-colour combinations
     combinations = { 3: (1, 2), 5: (1, 4), 6: (2, 4), 7: (1, 2, 4), 9: (1, 8), 10: (2, 8),
@@ -242,7 +252,9 @@ def get_palette_from_image(image):
             if pixel == IMG_TRANS: continue
             palette.add(pixel)
 
-    return ([IMG_TRANS] + sorted(palette))
+    palette = [IMG_TRANS] + sorted(palette)
+    debug(f'{palette = }')
+    return palette
 
 
 def get_min_combination_size(image, palette):
@@ -252,15 +264,16 @@ def get_min_combination_size(image, palette):
     w, h = image.size
 
     # iterate over each sprite individually
-    for y in range(0, h, DEF_H):
+    for y in range(0, h):
         for x in range(0, w, DEF_W):
-            # current sprite pattern
-            pattern = [data[x + i + ((y + j) * w)]
-                       for j in range(DEF_H) for i in range(DEF_W)]
-            cols = set([c for c in pattern if c != IMG_TRANS])
+            # 8x1 pattern
+            pattern = [data[(x + i) + y * w] for i in range(DEF_W)]
+            cols = set(pattern)# - {IMG_TRANS}
+            debug(cols)
             # detect colour not found in palette (for a user-defined palette)
             if len(xcols := [c for c in cols if not c in palette]) > 0:
-                raise LookupError(xcols)
+                xcols = 'colours %s' % rgb_list_to_hex_str(xcols)
+                raise LookupError(xcols + f' near {x = }..{x + 16}, {y = }')
 
             # mark simultaneously used colours on a single line
             for start in range(0, len(pattern), DEF_W):
@@ -438,7 +451,7 @@ def main():
         min_components = get_min_combination_size(image, palette)
         debug(f'Minimal sprite count: {min_components}')
     except LookupError as e:
-        parser.error("Colors used in the image must be present in the palette: %s" % e)
+        parser.error("colors used in the image must be present in the palette: %s" % e)
 
     total_bytes = 0
     cur_components = 0
