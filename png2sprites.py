@@ -29,6 +29,7 @@ import math
 from argparse import ArgumentParser
 from itertools import permutations
 from itertools import combinations
+from functools import reduce
 from PIL import Image
 
 __version__ = "1.1"
@@ -300,15 +301,14 @@ def decompose_indexes(colors, prime=set(), comb=set()):
                 combs.add(third)
                 primes.add(c[0])
                 primes.add(c[1])
-                #sys.exit(1)
-            #if third in colors:
-            #    colors -= {third}
-            #    combs.add(third)
-            #    primes.add(c[0])
     return combs, set(colors) - combs
 
 
-def build_sprites(image, palette):
+class Abort(Exception):
+    pass
+
+
+def build_sprites(image, palette, prev_components):
     w, h = image.size
     data = image.getdata()
     lookup = build_lookup_table(palette)
@@ -379,6 +379,10 @@ def build_sprites(image, palette):
                         # Add to sprite only the used bytes.
                         if byte[color] != 0:
                             sprite.add_line(j, color, cell, byte[color], color in cc_bit_set)
+                            # Abort if number of components remains the same
+                            if sprite.components == prev_components:
+                                raise Abort()
+
                 # debug sprite line
                 debug('***', sprite.data[j])
 
@@ -388,6 +392,10 @@ def build_sprites(image, palette):
             total_bytes += sprite.components * 16
 
     return sprites, max_components, total_bytes
+
+
+def get_permutation_size(length):
+    return reduce(lambda x, y: x * y, range(1, length + 1))
 
 
 def main():
@@ -465,11 +473,24 @@ def main():
         collection = (tuple(palette[1:]),)
 
     debug('** begin sprite building...')
+    count = 0
+    collection_size = get_permutation_size(len(palette) - 1)
+    prev_components = min_components + 2
+
     for tmp in collection:
+        # Print progress update
+        print('\rProgress: %.8f%%' % (count / collection_size * 100), end='', file=sys.stderr)
         # Fix palette position 0 (transparent colour)
         pal = (palette[0],) + tmp
         debug(f'** current palette: {pal}')
-        sprites, components, total_bytes = build_sprites(image, pal)
+
+        try:
+            sprites, components, total_bytes = build_sprites(image, pal, prev_components)
+            prev_components = components
+        except Abort:
+            count += 1
+            continue
+
         debug(f'** current loop components count: {components}')
         debug('========================================')
         # Get it out there first.
@@ -489,6 +510,8 @@ def main():
             cur_components = components
             cur_sprites = sprites
             cur_pal = pal
+
+        count += 1
 
     debug(f'Sprite components: {cur_components}')
     out = []
