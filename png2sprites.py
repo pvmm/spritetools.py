@@ -479,7 +479,7 @@ def main():
 
     for tmp in collection:
         # Print progress update
-        print('\rProgress: %.8f%%' % (count / collection_size * 100), end='', file=sys.stderr)
+        print('\rProgress: %.5f%%' % (count / collection_size * 100), end='', file=sys.stderr)
         # Fix palette position 0 (transparent colour)
         pal = (palette[0],) + tmp
         debug(f'** current palette: {pal}')
