@@ -436,10 +436,10 @@ def main():
     except LookupError as e:
         parser.error("Colors used in the image must be present in the palette: %s" % e)
 
-    current_components = 0
     total_bytes = 0
-    best_sprites = None
-    best_pal = None
+    cur_components = 0
+    cur_sprites = None
+    cur_pal = None
     num = 0
 
     if args.min:
@@ -455,31 +455,36 @@ def main():
         sprites, components, total_bytes = build_sprites(image, pal)
         debug(f'** current loop components count: {components}')
         debug('========================================')
-        # Get out there.
-        if not best_sprites:
-            current_components = components
-            best_sprites = sprites
-            best_pal = pal
+        # Get it out there first.
+        if not cur_sprites:
+            cur_components = components
+            cur_sprites = sprites
+            cur_pal = pal
         # Optimise.
         if args.min and components == min_components:
             debug('Minimum component configuration found.')
-            current_components = components
-            best_sprites = sprites
-            best_pal = pal
+            cur_components = components
+            cur_sprites = sprites
+            cur_pal = pal
             break
+        if args.min and components < cur_components:
+            debug(f'Better component configuration found: {components} < {cur_components}')
+            cur_components = components
+            cur_sprites = sprites
+            cur_pal = pal
 
-    debug(f'Sprite components: {current_components}')
+    debug(f'Sprite components: {cur_components}')
     out = []
     pos = []
 
-    for sprite in best_sprites:
+    for sprite in cur_sprites:
         for count in range(sprite.components):
             out.append(sprite.get_component(count))
             pos.append(sprite.pos)
 
     debug(f'patterns = ', out)
     debug(f'Total bytes: {total_bytes}')
-    debug(f'Best palette: {best_pal}')
+    debug(f'Current palette: {cur_pal}')
 
     if args.basic:
         line_num = 100
@@ -488,7 +493,7 @@ def main():
             line_num += 10; print('%d VDP(9)=VDP(9) OR &H20: COLOR 15,0,0' % line_num) # set same background color of the original image
             line_num += 10
         print('%d REM PALETTE' % line_num)
-        for index, color in enumerate(best_pal):
+        for index, color in enumerate(cur_pal):
             if color != (-1, -1, -1):
                 msx_color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
                 line_num += 10; print('%d COLOR=%s: REM RGB=%s' % (line_num, (index,) + msx_color, color))
@@ -518,7 +523,7 @@ def main():
             print("%s_TOTAL = %d\n" % (args.id.upper(), total_bytes))
 
         print('%s_palette:' % args.id)
-        for index, color in enumerate(best_pal):
+        for index, color in enumerate(cur_pal):
             if color != (-1, -1, -1):
                 msx_color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
                 print('\tdb #0x%i%i, #0x%i\t\t; %i: RGB = %i, %i, %i' % ((msx_color[0], msx_color[2], msx_color[1], index) + color))
@@ -537,7 +542,7 @@ def main():
             print("#define _%s_H\n" % args.id.upper())
 
         print('// palette data\n\nconst unsigned char %s_palette[] =\n{' % args.id)
-        for index, color in enumerate(best_pal):
+        for index, color in enumerate(cur_pal):
             if color != (-1, -1, -1):
                 msx_color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
                 print('\t0x%i%i, 0x%i\t\t// %i: RGB = %i, %i, %i' % ((msx_color[0], msx_color[2], msx_color[1], index) + color))
