@@ -71,7 +71,9 @@ def to_hex_list_str_basic(src):
 
 
 def lookup_combination(index):
-    combinations = { 3: [1, 2], 5: [1, 4], 7: [1, 2, 4], 9: [1, 8] }
+    # OR-colour combinations
+    combinations = { 3: [1, 2], 5: [1, 4], 6: [2, 4], 7: [1, 2, 4], 9: [1, 8], 10: [2, 8],
+                    11: [1, 2, 8], 13: [1, 4, 8], 14: [2, 4, 8], 15: [1, 2, 4, 8] }
     return combinations[index]
 
 
