@@ -238,7 +238,7 @@ def get_palette_from_image(image):
 
     for y in range(h):
         for x in range(w):
-            pixel = data[x + y * DEF_W]
+            pixel = data[x + y * w]
             if pixel == IMG_TRANS: continue
             palette.add(pixel)
 
