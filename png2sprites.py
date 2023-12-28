@@ -24,7 +24,6 @@
 
 import os
 import sys
-import contextlib
 import math
 
 from argparse import ArgumentParser
@@ -147,6 +146,27 @@ def decombine_colors(indexes):
     return removed, rest, factors
 
 
+class SpriteLine:
+    def __init__(self, pattern_a=0, pattern_b=0):
+        self.cc = False
+        self.patterns = [pattern_a, pattern_b]
+
+    def __getitem__(self, n):
+        return self.patterns[n]
+
+    def __setitem__(self, n, pattern):
+        self.patterns[n] = pattern
+
+    def set_cc(self, bit):
+        self.cc = bit
+
+    def cc_bit(self):
+        return self.cc
+
+    def __str__(self):
+        return '%s' % self.patterns
+
+
 class Sprite:
     def __init__(self, palette):
         self.colors = set()
@@ -154,16 +174,15 @@ class Sprite:
         self.data = [dict() for i in range(DEF_H)]
         self.pos = None
 
-    def add_line(self, line_num, color, cell, pattern, or_colour_bit):
+    def add_line(self, line_num, color, cell, pattern, or_color_bit):
         self.colors.add(color)
         # Add new pattern data for a new colour if necessary
         if color not in self.data[line_num]:
             # 0: left pattern, 1: right pattern
-            self.data[line_num][color] = [0, 0]
+            self.data[line_num][color] = SpriteLine()
         self.data[line_num][color][cell] = pattern
         # Activate CC (OR-colour flag)
-        if or_colour_bit:
-            self.data[line_num][color][0] = -self.data[line_num][color][0]
+        self.data[line_num][color].set_cc(or_color_bit)
         self.components = max(self.components, len(self.data[line_num]))
         debug(f'** sprite line has {self.components} components')
 
@@ -172,17 +191,19 @@ class Sprite:
 
         for cell in range(2):
             for line_num in range(16):
-                color = 0
                 try:
+                    #debug(sorted(self.data[line_num])
                     # Convert position index into colour index
                     color = sorted(self.data[line_num].keys())[idx]
-                    byte = 0
-                    with contextlib.suppress(KeyError):
+
+                    try:
                         byte = self.data[line_num][color][cell]
-                    # Activate OR-colour bit in colour.
-                    if not cell: data['colors'].append(color + (64 if byte < 0 else 0))
-                    # Remove OR-colour bit from colour.
-                    data['patterns'].append(abs(byte))
+                    except KeyError:
+                        byte = 0
+
+                    # Activate OR-colour bit in colour if needed.
+                    if cell == 0: data['colors'].append(color + self.data[line_num][color].cc_bit())
+                    data['patterns'].append(byte)
                 except IndexError:
                     if not cell: data['colors'].append(0)
                     data['patterns'].append(0)
@@ -316,7 +337,7 @@ def build_sprites(image, palette):
                     # bytes for all 16 possible colours
                     byte = [0] * 16
                     p = 7
-                    or_colour = set()
+                    cc_bit_set = set()
                     # Iterate over each bit of the left and right
                     for k in range(8):
                         index = lookup[pattern[i + j * 16 + k]]
@@ -328,8 +349,9 @@ def build_sprites(image, palette):
                                 debug(f'* combo: set pixel at x={p} to colour={c}')
                                 byte[c] |= 1 << p
                             # Set CC bit on all sprites with lower priority.
-                            for c1, c2 in permutations(colors, 2):
-                                or_colour.add(max(c1, c2))
+                            for c1, c2 in combinations(colors, 2):
+                                debug(f'** adding CC bit to line of colour {c2}') 
+                                cc_bit_set.add(c2)
                         elif index > 0:
                             # Draw pixel for prime colour.
                             debug(f'* prime: set pixel at x={p} to colour={index}')
@@ -339,7 +361,7 @@ def build_sprites(image, palette):
                     for color in indexes:
                         # Add to sprite only the used bytes.
                         if byte[color] != 0:
-                            sprite.add_line(j, color, cell, byte[color], color in or_colour)
+                            sprite.add_line(j, color, cell, byte[color], color in cc_bit_set)
                 # debug sprite line
                 debug('***', sprite.data[j])
 
