@@ -29,7 +29,7 @@ from itertools import combinations
 from functools import reduce
 from PIL import Image
 
-__version__ = "0.1"
+__version__ = '0.1'
 
 MAX_COLORS = 16
 DEF_W = 16
@@ -76,7 +76,7 @@ def check_line(sprite_x, sprite_y, lineno, colors, max_sprites):
 
 
 def check_combinations(image, max_sprites, palette, trans_color):
-    """Get number of colours used in OR-colour combinations for the whole image."""
+    '''Get number of colours used in OR-colour combinations for the whole image.'''
     data = image.getdata()
     w, h = image.size
     all_errors = []
@@ -96,21 +96,21 @@ def check_combinations(image, max_sprites, palette, trans_color):
 
 
 def main():
-    parser = ArgumentParser(description="Sprite Checker for MSX2 sprites",
-                            epilog="""Copyright (C) 2023 Pedro de Medeiros <pedro.medeiros@.gmail.com>"""
+    parser = ArgumentParser(description='Sprite Checker for MSX2 sprites',
+                            epilog='''Copyright (C) 2023 Pedro de Medeiros <pedro.medeiros@.gmail.com>'''
                             )
 
     parser.add_argument(
-        "--version", action="version", version="%(prog)s " + __version__)
-    parser.add_argument("-c", "--count", dest="max_sprites", default=2, type=int,
-                        help="maximum sprites per slot (default: 2)")
-    parser.add_argument("-t", "--trans", dest="trans_color", default=0, type=int,
-                        help="define transparent color index (default: 0)")
+        '--version', action='version', version='%(prog)s ' + __version__)
+    parser.add_argument('-c', '--count', dest='max_sprites', default=2, type=int,
+                        help='maximum sprites per slot (default: 2)')
+    parser.add_argument('-i', '--ignore', dest='ignored_color', default=0, type=int,
+                        help='ignore color index (default: 0 meaning none)')
 
-    parser.add_argument("image", help="image to examine")
+    parser.add_argument('image', help='image to examine')
 
     args = parser.parse_args()
-    debug('Transparent colour index =', args.trans_color)
+    debug('Transparent colour index =', args.ignored_color)
 
     try:
         image = Image.open(args.image)
@@ -118,7 +118,7 @@ def main():
         parser.error("failed to open the image")
 
     if image.mode != 'P':
-        parser.error("not an indexed image (%s detected)" % image.mode)
+        parser.error('not an indexed image (%s detected)' % image.mode)
 
     palette = get_palette_from_image(image)
     if DEBUG:
@@ -137,7 +137,7 @@ def main():
         parser.error("%s size is not multiple of sprite size (%s, %s)" %
                      (args.image, DEF_W, DEF_H))
 
-    errors = check_combinations(image, args.max_sprites, palette, args.trans_color)
+    errors = check_combinations(image, args.max_sprites, palette, args.ignored_color)
     if errors:
         for error in errors:
             print(error)
