@@ -32,7 +32,7 @@ from itertools import combinations
 from functools import reduce
 from PIL import Image
 
-__version__ = "1.1"
+__version__ = "1.2"
 
 MAX_COLORS = 16
 DEF_W = 16
