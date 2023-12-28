@@ -179,7 +179,7 @@ class SpriteLine:
         return 64 * self.cc
 
     def __str__(self):
-        return '%s' % self.patterns
+        return '%s,%s' % (self.patterns[0], self.patterns[1])
 
 
 class Sprite:
@@ -198,6 +198,7 @@ class Sprite:
         self.data[line_num][color][cell] = pattern
         # Activate CC (OR-colour flag)
         self.data[line_num][color].set_cc(or_color_bit)
+        debug(f'** color {color} on line {line_num} set to {or_color_bit}')
         self.components = max(self.components, len(self.data[line_num]))
         debug(f'** sprite line has {self.components} components')
 
@@ -209,7 +210,7 @@ class Sprite:
                 try:
                     # Convert position index into colour index
                     color = sorted(self.data[line_num].keys())[idx]
-                    debug(f'{idx=} -> {color=}, colors:', sorted(self.data[line_num]))
+                    debug(f'{line_num}: {idx=} -> {color=}, colors:', sorted(self.data[line_num]))
 
                     try:
                         byte = self.data[line_num][color][cell]
@@ -217,7 +218,8 @@ class Sprite:
                         byte = 0
 
                     # Activate OR-colour bit in colour if needed.
-                    if cell == 0: data['colors'].append(color + self.data[line_num][color].cc_bit())
+                    if cell == 0:
+                        data['colors'].append(color + self.data[line_num][color].cc_bit())
                     data['patterns'].append(byte)
                 except IndexError:
                     if not cell: data['colors'].append(0)
@@ -343,6 +345,7 @@ def build_sprites(image, palette, prev_components):
                 if not indexes: continue
                 removed, primes = decompose_indexes(set(indexes))
                 debug(f'decomposed colours: {removed = }, {primes = }')
+                cc_bit_set = set()
 
                 # Fill line pattern data on the left and right.
                 for cell, i in ((0, 0), (1, 8)):
@@ -353,8 +356,7 @@ def build_sprites(image, palette, prev_components):
                     sprite.pos = x, y
                     # bytes for all 16 possible colours
                     byte = [0] * 16
-                    p = 7
-                    cc_bit_set = set()
+                    bit = 7
                     # Iterate over each bit of the left and right
                     for k in range(8):
                         index = lookup[pattern[i + j * 16 + k]]
@@ -363,17 +365,17 @@ def build_sprites(image, palette, prev_components):
                             colors = lookup_combination(index)
                             debug(f'combo colour {index} decomposed to colours: {colors}')
                             for c in colors:
-                                debug(f'* combo: set pixel at x={p} to colour={c}')
-                                byte[c] |= 1 << p
+                                debug(f'* combo: set pixel at {bit=} to colour={c}')
+                                byte[c] |= 1 << bit
                             # Set CC bit on all sprites with lower priority.
                             for c1, c2 in combinations(colors, 2):
                                 debug(f'** adding CC bit to line of colour {c2}') 
                                 cc_bit_set.add(c2)
                         elif index > 0:
                             # Draw pixel for prime colour.
-                            debug(f'* prime: set pixel at x={p} to colour={index}')
-                            byte[index] |= 1 << p
-                        p -= 1
+                            debug(f'* prime: set pixel at {bit=} to colour={index}')
+                            byte[index] |= 1 << bit
+                        bit -= 1
 
                     for color in indexes:
                         # Add to sprite only the used bytes.
@@ -475,7 +477,7 @@ def main():
     debug('** begin sprite building...')
     count = 0
     collection_size = get_permutation_size(len(palette) - 1)
-    prev_components = min_components + 2
+    prev_components = 15 # min_components + 2
 
     for tmp in collection:
         # Print progress update
