@@ -37,6 +37,7 @@ __version__ = "1.2"
 MAX_COLORS = 16
 DEF_W = 16
 DEF_H = 16
+ENDL = '%s%s' % (chr(0x0d), chr(0x0a))
 
 IMG_TRANS = (255, 0, 255)
 MSX_TRANS = (0, 0, 0)
@@ -51,34 +52,34 @@ else:
 
 def to_hex_list_str(src):
     """Writes sprites as C-style hexadecimal data."""
-    out = ""
+    out = ''
     for i in range(0, len(src), 8):
-        out += ', '.join(["0x%02x" % b for b in src[i:i + 8]]) + ',\n'
+        out += ', '.join(['0x%02x' % b for b in src[i:i + 8]]) + ',\n'
     return out
 
 
 def to_hex_list_str_asm(src):
     """Writes sprites as assembly-style hexadecimal data."""
-    out = ""
+    out = ''
     for i in range(0, len(src), 8):
-        out += '\tdb ' + ', '.join(["#0x%02x" % b for b in src[i:i + 8]])
+        out += '\tdb ' + ', '.join(['#0x%02x' % b for b in src[i:i + 8]])
         out += '\n'
     return out
 
 
 def to_hex_list_str_basic(src):
     """Writes sprites as BASIC-style hexadecimal data."""
-    return "DATA %s\n" % ', '.join(["&H%02X" % b for b in src])
+    return 'DATA %s%s' % (', '.join(['&H%02X' % b for b in src]), ENDL)
 
 
 def rgb_list_to_str(lst):
     """Writes output as C-style hexadecimal data."""
-    return ', '.join(["(%i, %i, %i)" % (r, g, b) for r, g, b in lst])
+    return ', '.join(['(%i, %i, %i)' % (r, g, b) for r, g, b in lst])
 
 
 def rgb_list_to_hex_str(lst):
     """Writes output as C-style hexadecimal data."""
-    return ', '.join(["(%x, %x, %x)" % (r, g, b) for r, g, b in lst])
+    return ', '.join(['(%x, %x, %x)' % (r, g, b) for r, g, b in lst])
 
 
 def lookup_combination(index):
@@ -429,31 +430,31 @@ def main():
     try:
         image = Image.open(args.image)
     except IOError:
-        parser.error("failed to open the image")
+        parser.error('failed to open image "%s"' % args.image)
 
-    if image.mode != "RGB":
-        parser.error("not a RGB image (%s detected)" % image.mode)
+    if image.mode != 'RGB':
+        parser.error('not a RGB image (%s detected)' % image.mode)
 
     if args.pal_file:
         with open(args.pal_file, 'r') as pal_file:
             palette = list(eval(pal_file.read()))
             lookup = {y:x for x, y in enumerate(palette)} # palette lookup
             if len(palette) > MAX_COLORS:
-                parser.error("palette too big (maximum of 16 colors expected, got %i)" % len(palette))
+                parser.error('palette too big (maximum of 16 colors expected, got %i)' % len(palette))
             for (r, g, b) in palette:
                 if not(int == type(r) == type(g) == type(b)):
-                    parser.error("wrong palette type")
+                    parser.error('wrong palette type')
     else:
         palette = get_palette_from_image(image)
         if len(palette) > MAX_COLORS:
-            parser.error("palette too big (maximum of 16 colors expected, got %i)" % len(palette))
+            parser.error('palette too big (maximum of 16 colors expected, got %i)' % len(palette))
         debug('using embedded palette: ', palette)
         lookup = {y:x for x, y in enumerate(palette)} # palette lookup
 
     w, h = image.size
 
     if w % DEF_W or h % DEF_H:
-        parser.error("%s size is not multiple of sprite size (%s, %s)" %
+        parser.error('%s size is not multiple of sprite size (%s, %s)' %
                      (args.image, DEF_W, DEF_H))
 
     # Get mininum possible size and try to match
@@ -461,7 +462,7 @@ def main():
         min_components = get_min_combination_size(image, palette)
         debug(f'Minimal sprite count: {min_components}')
     except LookupError as e:
-        parser.error("colors used in the image must be present in the palette: %s" % e)
+        parser.error('colors used in the image must be present in the palette: %s' % e)
 
     total_bytes = 0
     cur_components = 0
@@ -515,6 +516,7 @@ def main():
 
         count += 1
 
+    print(end='\n', file=sys.stderr)
     debug(f'Sprite components: {cur_components}')
     out = []
     pos = []
@@ -531,38 +533,40 @@ def main():
     if args.basic:
         line_num = 100
         if not args.pal_only:
-            print('%d SCREEN 5,2' % line_num)
-            line_num += 10; print('%d VDP(9)=VDP(9) OR &H20: COLOR 15,0,0' % line_num) # set same background color of the original image
+            println = lambda *x: print(*x, end=ENDL)
+            println('%d SCREEN 5,2' % line_num)
+            # set same background color of the original image
+            line_num += 10; println('%d VDP(9)=VDP(9) OR &H20: COLOR 15,0,0' % line_num)
             line_num += 10
-        print('%d REM PALETTE' % line_num)
+        println('%d REM PALETTE' % line_num)
         for index, color in enumerate(cur_pal):
             if color != (-1, -1, -1):
                 msx_color = round(color[0] / 255 * 7), round(color[1] / 255 * 7), round(color[2] / 255 * 7)
-                line_num += 10; print('%d COLOR=%s: REM RGB=%s' % (line_num, (index,) + msx_color, color))
+                line_num += 10; println('%d COLOR=%s: REM RGB=%s' % (line_num, (index,) + msx_color, color))
         if not args.pal_only:
             for i in range(len(out)):
-                line_num += 10; print('%d REM READ %s_COLORS(%d)' % (line_num, args.id.upper(), i))
-                line_num += 10; print('%d A$="":FOR I = 1 TO 16:READ A%%:A$=A$+CHR$(A%%):NEXT:COLOR SPRITE$(%d)=A$' % (line_num, i))
-                line_num += 10; print('%d REM READ %s_PATTERN(%d)' % (line_num, args.id.upper(), i))
-                line_num += 10; print('%d A$="":FOR I = 1 TO 32:READ A%%:A$=A$+CHR$(A%%):NEXT:SPRITE$(%d)=A$' % (line_num, i))
-            line_num += 10; print('%d REM PUT %s SPRITE ON SCREEN' % (line_num, args.id.upper()))
+                line_num += 10; println('%d REM READ %s_COLORS(%d)' % (line_num, args.id.upper(), i))
+                line_num += 10; println('%d A$="":FOR I = 1 TO 16:READ A%%:A$=A$+CHR$(A%%):NEXT:COLOR SPRITE$(%d)=A$' % (line_num, i))
+                line_num += 10; println('%d REM READ %s_PATTERN(%d)' % (line_num, args.id.upper(), i))
+                line_num += 10; println('%d A$="":FOR I = 1 TO 32:READ A%%:A$=A$+CHR$(A%%):NEXT:SPRITE$(%d)=A$' % (line_num, i))
+            line_num += 10; println('%d REM PUT %s SPRITE ON SCREEN' % (line_num, args.id.upper()))
             for i in range(len(out)):
                 screen_pos = 100 + pos[i][0], 100 + pos[i][1]
-                line_num += 10; print('%d PUT SPRITE %d,%s,,%d' % (line_num, i, screen_pos, i))
-            line_num += 10; print('%d IF INKEY$ = "" GOTO %d' % (line_num, line_num))
-            line_num += 10; print('%d END' % line_num)
+                line_num += 10; println('%d PUT SPRITE %d,%s,,%d' % (line_num, i, screen_pos, i))
+            line_num += 10; println('%d IF INKEY$ = "" GOTO %d' % (line_num, line_num))
+            line_num += 10; println('%d END' % line_num)
             line_num  = 10**(math.ceil(math.log10(line_num)+0.00001))
-            print("%d REM %s_TOTAL = %d" % (line_num, args.id.upper(), total_bytes))
+            println('%d REM %s_TOTAL = %d' % (line_num, args.id.upper(), total_bytes))
             for i in range(len(out)):
-                line_num += 10; print("%d REM %s_COLORS(%d)" % (line_num, args.id.upper(), i))
-                line_num += 10; print("%d %s" % (line_num, to_hex_list_str_basic(out[i]['colors'])), end='')
-                line_num += 10; print("%d REM %s_PATTERN(%d)" % (line_num, args.id.upper(), i))
-                line_num += 10; print("%d %s" % (line_num, to_hex_list_str_basic(out[i]['patterns'])), end='')
-        print()
+                line_num += 10; println('%d REM %s_COLORS(%d)' % (line_num, args.id.upper(), i))
+                line_num += 10; print('%d %s' % (line_num, to_hex_list_str_basic(out[i]['colors'])), end='')
+                line_num += 10; println('%d REM %s_PATTERN(%d)' % (line_num, args.id.upper(), i))
+                line_num += 10; print('%d %s' % (line_num, to_hex_list_str_basic(out[i]['patterns'])), end='')
+        println('')
 
     elif args.asm:
         if not args.pal_only:
-            print("%s_TOTAL = %d\n" % (args.id.upper(), total_bytes))
+            print('%s_TOTAL = %d\n' % (args.id.upper(), total_bytes))
 
         print('%s_palette:' % args.id)
         for index, color in enumerate(cur_pal):
@@ -572,16 +576,16 @@ def main():
         print()
 
         if not args.pal_only:
-            color_out = ""; pattern_out = ""
+            color_out = ''; pattern_out = ''
             for i in range(len(out)):
-                print("%s_color%d:" % (args.id, i))
+                print('%s_color%d:' % (args.id, i))
                 print(to_hex_list_str_asm(out[i]['colors']))
-                print("%s_pattern%d:" % (args.id, i))
+                print('%s_pattern%d:' % (args.id, i))
                 print(to_hex_list_str_asm(out[i]['patterns']))
     else:
         if not args.pal_only:
-            print("#ifndef _%s_H" % args.id.upper())
-            print("#define _%s_H\n" % args.id.upper())
+            print('#ifndef _%s_H' % args.id.upper())
+            print('#define _%s_H\n' % args.id.upper())
 
         print('// palette data\n\nconst unsigned char %s_palette[] =\n{' % args.id)
         for index, color in enumerate(cur_pal):
@@ -591,28 +595,28 @@ def main():
         print('}\n')
 
         if not args.pal_only:
-            print("#define %s_TOTAL %d\n" % (args.id.upper(), total_bytes))
-            color_out = ""; pattern_out = ""
+            print('#define %s_TOTAL %d\n' % (args.id.upper(), total_bytes))
+            color_out = ''; pattern_out = ''
             for count in range(len(out)):
                 color_out   += '{\n' + to_hex_list_str(out[count]['colors']) + '},\n'
                 pattern_out += '{\n' + to_hex_list_str(out[count]['patterns']) + '}'
 
-            print("#ifdef LOCAL\n")
-            print("const unsigned char %s_colors[%d][%d] = {\n%s\n};\n" % (
+            print('#ifdef LOCAL\n')
+            print('const unsigned char %s_colors[%d][%d] = {\n%s\n};\n' % (
                   args.id, len(out), len(out[0]['colors']), color_out))
 
-            print("const unsigned char %s_patterns[%d][%d] = {\n%s\n};\n" % (
+            print('const unsigned char %s_patterns[%d][%d] = {\n%s\n};\n' % (
                   args.id, len(out), len(out[0]['patterns']), pattern_out))
 
-            print("#else\n")
-            print("extern const unsigned char %s_colors[%d][%d];" %
+            print('#else\n')
+            print('extern const unsigned char %s_colors[%d][%d];' %
                   (args.id, len(out), len(out[0]['colors'])))
 
-            print("extern const unsigned char %s_patterns[%d][%d];" %
+            print('extern const unsigned char %s_patterns[%d][%d];' %
                   (args.id, len(out), len(out[0]['patterns'])))
-            print("\n#endif // LOCAL")
-            print("#endif // _%s_H\n" % args.id.upper())
+            print('\n#endif // LOCAL')
+            print('#endif // _%s_H\n' % args.id.upper())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
