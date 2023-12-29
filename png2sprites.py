@@ -366,7 +366,7 @@ def build_sprite_sheet(data, width, height, palette, min_components, minimise):
     prev_components = 15 # min_components + 2
     count = 0
 
-    for partition in x_at_once(palette[1:], spread=1000):
+    for partition in x_at_once(palette[1:], spread=PROCESSES):
         for tmp in partition:
             # Print progress update
             if DEBUG == 0:
