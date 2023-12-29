@@ -254,8 +254,16 @@ def decompose_indexes(colors, prime=set(), comb=set()):
     return combs, set(colors) - combs
 
 
-class Abort(Exception):
-    pass
+class DeadEnd(Exception):
+    """Abort when dead end is reached."""
+    ...
+
+
+class Found(Exception):
+    """Found parameters when done."""
+
+    def __init__(self, *args):
+        self.args = args
 
 
 def build_sprites(data, w, h, palette, prev_components):
@@ -330,7 +338,7 @@ def build_sprites(data, w, h, palette, prev_components):
                             sprite.add_line(j, color, cell, byte[color], color in cc_bit_set)
                             # Abort if number of components remains the same
                             if sprite.components == prev_components:
-                                raise Abort()
+                                raise DeadEnd()
 
                 # debug sprite line
                 debug('***', sprite.data[j])
@@ -348,7 +356,6 @@ def get_permutation_size(length):
 
 
 def build_sprite_sheet(data, width, height, palette, min_components, minimise):
-    #print(f'** build_sprite_sheet: {palette = }', file=sys.stderr)
     total_bytes = 0
     cur_components = 0
     cur_sprites = None
@@ -361,7 +368,6 @@ def build_sprite_sheet(data, width, height, palette, min_components, minimise):
 
     for partition in x_at_once(palette[1:], spread=1000):
         for tmp in partition:
-            #print(f'** partition: {tmp = }', file=sys.stderr)
             # Print progress update
             if DEBUG == 0:
                 print('\rProgress: %.4f%%' % (count / size * 100), end='', file=sys.stderr)
@@ -371,13 +377,11 @@ def build_sprite_sheet(data, width, height, palette, min_components, minimise):
             debug(f'** current palette: {pal}')
 
             try:
-                debug(f'** 2')
                 count += 1
                 sprites, components, total_bytes = build_sprites(data, width, height,
                                                                  pal, prev_components)
-                debug(f'** 3')
                 prev_components = components
-            except Abort:
+            except DeadEnd:
                 continue
 
             debug(f'** current loop components count: {components}')
@@ -389,11 +393,10 @@ def build_sprite_sheet(data, width, height, palette, min_components, minimise):
                 cur_pal = pal
             # Optimise.
             if minimise and components == min_components:
+                # Abort execution when done.
                 debug('Minimum component configuration found.')
-                cur_components = components
-                cur_sprites = sprites
-                cur_pal = pal
-                break
+                if DEBUG == 0: print(end='\n', file=sys.stderr)
+                raise Found(components, sprites, pal, total_bytes)
             if minimise and components < cur_components:
                 debug(f'Better component configuration found: {components} < {cur_components}')
                 cur_components = components
@@ -402,7 +405,7 @@ def build_sprite_sheet(data, width, height, palette, min_components, minimise):
 
             count += 1
 
-    print(end='\n', file=sys.stderr)
+    if DEBUG == 0: print(end='\n', file=sys.stderr)
     return cur_components, cur_sprites, cur_pal, total_bytes
 
 
@@ -466,12 +469,16 @@ def main():
     except LookupError as e:
         parser.error('colors used in the image must be present in the palette: %s' % e)
 
-    cur_components, cur_sprites, cur_pal, total_bytes = build_sprite_sheet(image.getdata(),
-                                                                           image.width,
-                                                                           image.height,
-                                                                           palette,
-                                                                           min_components,
-                                                                           False)
+    try:
+        cur_components, cur_sprites, cur_pal, total_bytes = build_sprite_sheet(image.getdata(),
+                                                                               image.width,
+                                                                               image.height,
+                                                                               palette,
+                                                                               min_components,
+                                                                               False)
+    except Found as found:
+        cur_components, cur_sprites, cur_pal, total_bytes = f.args
+
     debug(f'Sprite components: {cur_components}')
     out = []
     pos = []
