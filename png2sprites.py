@@ -25,11 +25,13 @@
 import os
 import sys
 import math
+import contextlib
 
 from argparse import ArgumentParser
 from itertools import permutations
 from itertools import combinations
 from functools import reduce
+from multiprocessing.pool import ThreadPool
 from PIL import Image
 
 __version__ = "1.2"
@@ -38,6 +40,7 @@ MAX_COLORS = 16
 DEF_W = 16
 DEF_H = 16
 ENDL = '%s%s' % (chr(0x0d), chr(0x0a))
+PROCESSES = 10000
 
 IMG_TRANS = (255, 0, 255)
 MSX_TRANS = (0, 0, 0)
@@ -45,8 +48,10 @@ FAKE_PAL = [(-1, -1, -1)] * MAX_COLORS
 
 # Enable/disable DEBUG mode
 if os.environ.get('DEBUG', False):
+    DEBUG = 1
     debug = lambda *x, **y: print(*x, **y, file=sys.stderr)
 else:
+    DEBUG = 0
     debug = lambda *x, **y: None
 
 
@@ -253,38 +258,41 @@ def get_palette_from_image(image):
     for y in range(h):
         for x in range(w):
             pixel = data[x + y * w]
-            if pixel == IMG_TRANS: continue
-            palette.add(pixel)
+            if pixel != IMG_TRANS:
+                palette.add(pixel)
 
     palette = [IMG_TRANS] + sorted(palette)
-    debug(f'{palette = }')
+    debug(f'get_palette_from_image: {palette}')
     return palette
 
 
 def get_min_combination_size(image, palette):
     """Get number of sprites needed for colour combinations (including OR-colours) for the whole image."""
     data = image.getdata()
+    new_data = []
     num_colors = 0
     w, h = image.size
+    combs = set()
 
     # iterate over each sprite individually
     for y in range(0, h):
         for x in range(0, w, DEF_W):
             # 8x1 pattern
             pattern = [data[(x + i) + y * w] for i in range(DEF_W)]
-            cols = set(pattern)# - {IMG_TRANS}
-            debug(cols)
+            cols = set(pattern) #- {IMG_TRANS}
             # detect colour not found in palette (for a user-defined palette)
             if len(xcols := [c for c in cols if not c in palette]) > 0:
                 xcols = 'colours %s' % rgb_list_to_hex_str(xcols)
                 raise LookupError(xcols + f' near {x = }..{x + 16}, {y = }')
+            # Writes down combinations of what is possible inside a 16x1 block
+            combs.add(tuple(cols - {IMG_TRANS}))
 
-            # mark simultaneously used colours on a single line
-            for start in range(0, len(pattern), DEF_W):
-                num_colors = max(num_colors, len(set(pattern[start : start + DEF_W]) - {IMG_TRANS}))
+    # Fill data with a multiple of 16x16 patterns
+    new_data = (math.ceil(len(new_data) / 128) * 128 - len(new_data)) * [(0, 0, 0)] + list(cols)
 
-    #debug(f'{num_colors = }')
-    return max(0, math.ceil(math.log2(num_colors+0.00001)))
+    # Build sprite sheets for generated image
+    components, _, palette, _ = build_sprite_sheet(new_data, 16, len(new_data) // 16, palette, True)
+    return components, palette
 
 
 def decompose_indexes(colors, prime=set(), comb=set()):
@@ -311,9 +319,10 @@ class Abort(Exception):
     pass
 
 
-def build_sprites(image, palette, prev_components):
-    w, h = image.size
-    data = image.getdata()
+def build_sprites(data, w, h, palette, prev_components):
+    debug(f'{w=} x {h=}')
+    #w, h = image.size
+    #data = image.getdata()
     lookup = build_lookup_table(palette)
     debug(f'** {lookup = }')
     index_lookup = lambda rgb: lookup[rgb]
@@ -401,6 +410,70 @@ def get_permutation_size(length):
     return reduce(lambda x, y: x * y, range(1, length + 1))
 
 
+def build_sprite_sheet(data, width, height, palette, minimise):
+    #print(f'** build_sprite_sheet: {palette = }', file=sys.stderr)
+    total_bytes = 0
+    cur_components = 0
+    cur_sprites = None
+    cur_pal = None
+
+    if minimise:
+        palettes = permutations(palette[1:])
+        size = get_permutation_size(len(palette) - 1)
+    else:
+        palettes = (tuple(palette[1:]),)
+        size = get_permutation_size(len(palette) - 1)
+
+    debug('** begin sprite sheet building...')
+    count = 0
+    min_components = 3
+    prev_components = 15 # min_components + 2
+
+    for tmp in palettes:
+        # Print progress update
+        if DEBUG == 0:
+            print('\rProgress: %.5f%%' % (count / size * 100), end='', file=sys.stderr)
+
+        # Fix palette position 0 (transparent colour)
+        pal = (IMG_TRANS,) + tmp
+        debug(f'** current palette: {pal}')
+
+        try:
+            debug(f'** 2')
+            count += 1
+            sprites, components, total_bytes = build_sprites(data, width, height,
+                                                             pal, prev_components)
+            debug(f'** 3')
+            prev_components = components
+        except Abort:
+            continue
+
+        debug(f'** current loop components count: {components}')
+        debug('========================================')
+        # Get it out there first.
+        if not cur_sprites:
+            cur_components = components
+            cur_sprites = sprites
+            cur_pal = pal
+        # Optimise.
+        if minimise and components == min_components:
+            debug('Minimum component configuration found.')
+            cur_components = components
+            cur_sprites = sprites
+            cur_pal = pal
+            break
+        if minimise and components < cur_components:
+            debug(f'Better component configuration found: {components} < {cur_components}')
+            cur_components = components
+            cur_sprites = sprites
+            cur_pal = pal
+
+        count += 1
+
+    print(end='\n', file=sys.stderr)
+    return cur_components, cur_sprites, cur_pal, total_bytes
+
+
 def main():
     parser = ArgumentParser(description="PNG to MSX2 sprites",
                             epilog="""Copyright (C) 2022-2023 Pedro de Medeiros <pedro.medeiros@.gmail.com>"""
@@ -451,72 +524,23 @@ def main():
         debug('using embedded palette: ', palette)
         lookup = {y:x for x, y in enumerate(palette)} # palette lookup
 
-    w, h = image.size
-
-    if w % DEF_W or h % DEF_H:
+    #w, h = image.size
+    if image.size[0] % DEF_W or image.size[1] % DEF_H:
         parser.error('%s size is not multiple of sprite size (%s, %s)' %
                      (args.image, DEF_W, DEF_H))
 
-    # Get mininum possible size and try to match
     try:
-        min_components = get_min_combination_size(image, palette)
+        # Get mininum possible component size
+        min_components, palette = get_min_combination_size(image, palette)
         debug(f'Minimal sprite count: {min_components}')
     except LookupError as e:
         parser.error('colors used in the image must be present in the palette: %s' % e)
 
-    total_bytes = 0
-    cur_components = 0
-    cur_sprites = None
-    cur_pal = None
-    num = 0
-
-    if args.min:
-        collection = permutations(palette[1:])
-    else:
-        collection = (tuple(palette[1:]),)
-
-    debug('** begin sprite building...')
-    count = 0
-    collection_size = get_permutation_size(len(palette) - 1)
-    prev_components = 15 # min_components + 2
-
-    for tmp in collection:
-        # Print progress update
-        print('\rProgress: %.5f%%' % (count / collection_size * 100), end='', file=sys.stderr)
-        # Fix palette position 0 (transparent colour)
-        pal = (palette[0],) + tmp
-        debug(f'** current palette: {pal}')
-
-        try:
-            sprites, components, total_bytes = build_sprites(image, pal, prev_components)
-            prev_components = components
-        except Abort:
-            count += 1
-            continue
-
-        debug(f'** current loop components count: {components}')
-        debug('========================================')
-        # Get it out there first.
-        if not cur_sprites:
-            cur_components = components
-            cur_sprites = sprites
-            cur_pal = pal
-        # Optimise.
-        if args.min and components == min_components:
-            debug('Minimum component configuration found.')
-            cur_components = components
-            cur_sprites = sprites
-            cur_pal = pal
-            break
-        if args.min and components < cur_components:
-            debug(f'Better component configuration found: {components} < {cur_components}')
-            cur_components = components
-            cur_sprites = sprites
-            cur_pal = pal
-
-        count += 1
-
-    print(end='\n', file=sys.stderr)
+    cur_components, cur_sprites, cur_pal, total_bytes = build_sprite_sheet(image.getdata(),
+                                                                           image.width,
+                                                                           image.height,
+                                                                           palette,
+                                                                           args.min)
     debug(f'Sprite components: {cur_components}')
     out = []
     pos = []
