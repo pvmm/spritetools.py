@@ -226,6 +226,9 @@ def get_min_combination_size(image, palette):
             # Writes down combinations of what is possible inside a 16x1 block
             combs.add(tuple(cols - {IMG_TRANS}))
 
+    # Fill new_data with possible colour combination
+    for line in combs:
+        new_data = (16 - len(line)) * [(0, 0, 0)] + list(line)
     # Fill data with a multiple of 16x16 patterns
     new_data = (math.ceil(len(new_data) / 128) * 128 - len(new_data)) * [(0, 0, 0)] + list(cols)
 
