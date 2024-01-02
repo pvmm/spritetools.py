@@ -230,9 +230,10 @@ def get_min_combination_size(image, palette):
     for line in combs:
         new_data = (16 - len(line)) * [(0, 0, 0)] + list(line)
     # Fill data with a multiple of 16x16 patterns
-    new_data = (math.ceil(len(new_data) / 128) * 128 - len(new_data)) * [(0, 0, 0)] + list(cols)
+    new_data += (math.ceil(len(new_data) / (DEF_H * DEF_H)) * (DEF_H * DEF_H) - len(new_data)) * [(0, 0, 0)]
 
     # Build sprite sheets for generated image
+    debug(f'** {16=} : {len(new_data)=}')
     min_components, _, new_palette, _ = build_sprite_sheet(new_data, 16, len(new_data) // 16, palette, 15, True)
     return min_components, new_palette
 
@@ -440,6 +441,7 @@ def main():
 
     try:
         image = Image.open(args.image)
+        debug(f'{image.width=} x {image.height=}')
     except IOError:
         parser.error('failed to open image "%s"' % args.image)
 
@@ -460,11 +462,10 @@ def main():
             parser.error('palette too big (maximum of 16 colors expected, got %i)' % len(palette))
         debug('** Using embedded palette: ', palette)
 
-    if image.size[0] % DEF_W or image.size[1] % DEF_H:
+    if image.width % DEF_W or image.height % DEF_H:
         parser.error('%s size is not multiple of sprite size (%s, %s)' %
                      (args.image, DEF_W, DEF_H))
 
-    #lookup = {y:x for x, y in enumerate(palette)} # palette lookup
     try:
         # Get mininum possible component size
         min_components, palette = get_min_combination_size(image, palette)
