@@ -106,12 +106,12 @@ TODO
 ----
 
 For `png2sprites.py`:
-* palette export feature;
-* ~~palette optimizations to reduce sprite count;~~
-* ~~make palette file optional;~~
-* add an option to optimise away palette file;
-* make palette minimisation faster;
+- [x] palette export feature;
+- [x] palette optimizations to reduce sprite count;
+- [x] make palette file optional;
+- [x] add an option to optimise away palette file;
+- [ ] make palette minimisation faster;
 
 For `spritecheck.py`:
-* allow user to somehow specify where in the image the sprites are by (x, y) coordinates;
-* create a copy of the original sprite sheet pointing out where the sprite conversion failed;
+- [ ] allow user to somehow specify where in the image the sprites are by (x, y) coordinates;
+- [ ] create a copy of the original sprite sheet pointing out where the sprite conversion failed;
